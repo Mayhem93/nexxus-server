@@ -5,4 +5,5 @@ export type UserDB = {
   id: string;
   name: string;
   email?: string;
+  test2: string;
 };
