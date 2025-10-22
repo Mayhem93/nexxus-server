@@ -10,10 +10,10 @@
     "noEmitHelpers": false,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@aws-sdk/*": ["packages/*/"],
-      "@aws-sdk/client-*": ["clients/client-*/"],
-      "@aws-sdk/aws-*": ["private/aws-*/"],
-      "@aws-sdk/lib-*": ["lib/*"]
+      "@nexxus/core": ["src/core/*"]
+      // "@aws-sdk/client-*": ["clients/client-*/"],
+      // "@aws-sdk/aws-*": ["private/aws-*/"],
+      // "@aws-sdk/lib-*": ["lib/*"]
     },
     "preserveConstEnums": true,
     "removeComments": true,

@@ -1,1 +1,3 @@
-import * as ACM from '@aws-sdk/client-acm';
+import * as test from './src/core/dist-cjs/index.js';
+
+console.log(test.UserSchema);
