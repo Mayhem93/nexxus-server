@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "properties": {
+    "database": {
+      "$ref": "#/invalid"
+    },
+    "app": {
+      "$ref": "#/$defs/NexxusMain"
+    }
+  },
+  "$defs": {
+    "NexxusMain": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "debug": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  },
+  "required": [
+    "database",
+    "app"
+  ]
+}
