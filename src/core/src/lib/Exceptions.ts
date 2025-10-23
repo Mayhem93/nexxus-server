@@ -1,4 +1,5 @@
 export enum NexxusExceptions {
+  FATAL_ERROR = "FatalErrorException",
   BAD_REQUEST = "BadRequestException",
   CONNECTION_ERROR = "ConnectionErrorException",
   INVALID_CONFIG = "InvalidConfigException"
@@ -8,6 +9,12 @@ export class NexxusException extends Error {
   constructor(type: NexxusExceptions, message: string) {
     super(message);
     this.name = type;
+  }
+}
+
+export class FatalErrorException extends NexxusException {
+  constructor(message: string) {
+    super(NexxusExceptions.FATAL_ERROR, message);
   }
 }
 

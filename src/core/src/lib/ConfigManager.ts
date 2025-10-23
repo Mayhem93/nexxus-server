@@ -1,17 +1,23 @@
 import { InvalidConfigException } from "./Exceptions";
+import {
+  CliArgType,
+  NexxusConfig,
+  INexxusConfigProvider,
+  NexxusFileConfigProvider,
+  NexxusEnvVarsConfigProvider,
+  NexxusCliArgConfigProvider
+} from "./ConfigProvider";
 
-import { Ajv, ValidateFunction, ErrorObject } from "ajv";
+import { Ajv, ErrorObject } from "ajv";
 import * as Dot from "dot-prop";
-import { ArgumentParser } from "argparse";
 import deepMerge from "deepmerge";
+import type { JSONSchema7 } from "json-schema";
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+type JsonSchema = JSONSchema7;
 type ConfigErrorObject = ErrorObject<string, Record<string, any>, unknown>[] | null | undefined;
-type JsonSchema = {
-  [key: string]: any
-}
 
 type EnvVarsSpec = {
   name: string;
@@ -26,7 +32,7 @@ type EnvVars = {
 type CliArgsSpec = {
   name: string;
   location: string;
-  type: "int" | "str" | "boolean" | "float";
+  type: CliArgType;
 }
 
 type CliArgs = {
@@ -34,53 +40,47 @@ type CliArgs = {
   spec: Array<CliArgsSpec>;
 };
 
-type ConfigConstructorInput = {
-  jsonSchema: string;
-  envVarsSpec?: Array<EnvVars> | [];
-  cliArgsSpec?: Array<CliArgs> | [];
-}
-
 export class ConfigurationManager {
-  private jsonSchema: JsonSchema = {};
+  private static CONF_FILE_NAME : Readonly<string> = "nexxus.conf.json";
+
+  private jsonSchema: JsonSchema;
   private validationErrors: ConfigErrorObject;
-  private argParser: ArgumentParser;
   private envVarsSpecs: Array<EnvVars> = [];
   private cliArgsSpecs: Array<CliArgs> = [];
-  private data: Object = {};
+  private data: NexxusConfig = {};
+
+  private defaultProviders : Array<INexxusConfigProvider> = [];
+  private customProviders : Array<INexxusConfigProvider> = [];
 
   constructor() {
-    const schemaPath = path.join(
-      __dirname,
-      "../../src/schemas/root.schema.json"
-    );
+    const schemaPath = path.join(__dirname, "../../src/schemas/root.schema.json");
 
     this.jsonSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
-    this.argParser = new ArgumentParser({ add_help: false });
 
-    /* const ajv = new Ajv();
+    this.defaultProviders.push(new NexxusFileConfigProvider(path.join(process.cwd(), ConfigurationManager.CONF_FILE_NAME)));
+    this.defaultProviders.push(new NexxusEnvVarsConfigProvider());
+    this.defaultProviders.push(new NexxusCliArgConfigProvider());
+  }
 
-    this.schemaValidator = ajv.compile(this.jsonSchema);
-    this.envVarsSpecs = input.envVarsSpec;
-    this.cliArgsSpecs = input.cliArgsSpec;
-
-    if (this.cliArgsSpecs?.spec && this.cliArgsSpecs.spec?.length > 0) {
-      this.argParser = new ArgumentParser({ add_help: false });
-    } */
+  public addCustomProvider(provider: INexxusConfigProvider): void {
+    this.defaultProviders.splice(1, 0, provider);
   }
 
   public addDatabaseSchemaModel(jsonSchema: string): void {
-    if (this.jsonSchema.$defs.NexxusDatabase) {
+    if (this.jsonSchema?.$defs?.NexxusDatabase) {
       throw new InvalidConfigException("Database schema already defined");
     }
 
-    this.jsonSchema.$defs.NexxusDatabase = JSON.parse(jsonSchema);
-    this.jsonSchema.properties.database.$ref = "#/$defs/NexxusDatabase";
-  }
+    //TODO: validate that jsonSchema is a valid json schema; eg try to ajv compile it
 
-  /* private appendJsonSchema(jsonSchema: string): void {
-    this.schemaValidator = this.schemaValidator || new Ajv();
-    this.schemaValidator = this.schemaValidator.compile(JSON.parse(jsonSchema));
-  } */
+    if (this.jsonSchema.$defs !== undefined) {
+      this.jsonSchema.$defs.NexxusDatabase = JSON.parse(jsonSchema);
+    }
+
+    if (this.jsonSchema.properties !== undefined) {
+      this.jsonSchema.properties.database = { "$ref": "#/$defs/NexxusDatabase" };
+    }
+  }
 
   public addCliArgsToSpec(source: string, spec: Array<CliArgsSpec>): void {
     this.cliArgsSpecs.push({ source, spec });
@@ -96,6 +96,7 @@ export class ConfigurationManager {
     }
 
     const collectedNames : Map<string, string> = new Map();
+    const cliArgProvider = this.defaultProviders.at(-1) as NexxusCliArgConfigProvider;
 
     this.cliArgsSpecs.forEach(spec => {
       spec.spec.forEach((arg) => {
@@ -104,16 +105,16 @@ export class ConfigurationManager {
         }
 
         collectedNames.set(arg.name, spec.source);
-        this.argParser?.add_argument(`--${arg.name}`, { type: arg.type, dest: arg.name, required: false });
+
+        cliArgProvider.addArgument(arg.name, arg.type);
       });
     });
 
-    const parsed = this.argParser.parse_args();
+    const parsed = cliArgProvider.getConfig();
 
     this.cliArgsSpecs.forEach(spec => {
       spec.spec.forEach(arg => {
         if (parsed[arg.name] !== undefined && parsed[arg.name] !== null) {
-          console.log(`Setting ${arg.name} to ${parsed[arg.name]}`);
           Dot.setProperty(this.data, arg.location, parsed[arg.name]);
         }
       });
@@ -126,6 +127,8 @@ export class ConfigurationManager {
     }
 
     const collectedNames: Map<string, string> = new Map();
+    const envVarProvider = this.defaultProviders.at(-2) as NexxusEnvVarsConfigProvider;
+    const envResult = envVarProvider.getConfig();
 
     this.envVarsSpecs.forEach(spec => {
       spec.spec.forEach(envVar => {
@@ -133,7 +136,7 @@ export class ConfigurationManager {
           throw new InvalidConfigException(`Duplicate Env var: "${envVar.name}". Defined first by source: "${collectedNames.get(envVar.name)}" and now by source: "${spec.source}"`);
         }
 
-        const value = process.env[envVar.name];
+        const value = envResult[envVar.name];
 
         if (value !== undefined) {
           Dot.setProperty(this.data, envVar.location, value);
@@ -144,7 +147,17 @@ export class ConfigurationManager {
     });
   }
 
-  public isValid(data: Object) : boolean {
+  public isValid() : boolean {
+    const fileConfigProvider = this.defaultProviders.at(0) as NexxusFileConfigProvider;
+
+    this.data = fileConfigProvider.getConfig();
+
+    // TODO: handle custom config providers
+    if (this.customProviders.length > 0) {
+      // getConfig() here and then do deep merge
+      // this.data = deepMerge(this.data, result);
+    }
+
     if (this.cliArgsSpecs.length > 0) {
       this.populateFromCliArgs();
     }
@@ -155,8 +168,7 @@ export class ConfigurationManager {
 
     const ajv = new Ajv();
     const validator = ajv.compile(this.jsonSchema);
-    const combinedData : Object = deepMerge(data, this.data);
-    const result : boolean = validator(combinedData);
+    const result : boolean = validator(this.data);
 
     if (!result) {
       this.validationErrors = validator.errors;
@@ -164,7 +176,7 @@ export class ConfigurationManager {
       return false;
     }
 
-    this.data = combinedData;
+    // this.data = combinedData;
 
     return true;
   }
@@ -173,7 +185,7 @@ export class ConfigurationManager {
     return this.validationErrors;
   }
 
-  public getConfig(): Object {
+  public getConfig(): NexxusConfig {
     return this.data;
   }
 }
