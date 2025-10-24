@@ -1,4 +1,4 @@
-import { InvalidConfigException } from "./Exceptions";
+import { FatalErrorException, InvalidConfigException } from "./Exceptions";
 import {
   CliArgType,
   NexxusConfig,
@@ -17,7 +17,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 type JsonSchema = JSONSchema7;
-type ConfigErrorObject = ErrorObject<string, Record<string, any>, unknown>[] | null | undefined;
+type ConfigErrorObject = ErrorObject<string, Record<string, any>, unknown>[];
 
 type EnvVarsSpec = {
   name: string;
@@ -26,7 +26,7 @@ type EnvVarsSpec = {
 
 type EnvVars = {
   source: string;
-  spec: Array<EnvVarsSpec>;
+  specs: Array<EnvVarsSpec>;
 };
 
 type CliArgsSpec = {
@@ -37,14 +37,13 @@ type CliArgsSpec = {
 
 type CliArgs = {
   source: string;
-  spec: Array<CliArgsSpec>;
+  specs: Array<CliArgsSpec>;
 };
 
 export class ConfigurationManager {
   private static CONF_FILE_NAME : Readonly<string> = "nexxus.conf.json";
 
   private jsonSchema: JsonSchema;
-  private validationErrors: ConfigErrorObject;
   private envVarsSpecs: Array<EnvVars> = [];
   private cliArgsSpecs: Array<CliArgs> = [];
   private data: NexxusConfig = {};
@@ -56,7 +55,6 @@ export class ConfigurationManager {
     const schemaPath = path.join(__dirname, "../../src/schemas/root.schema.json");
 
     this.jsonSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
-
     this.defaultProviders.push(new NexxusFileConfigProvider(path.join(process.cwd(), ConfigurationManager.CONF_FILE_NAME)));
     this.defaultProviders.push(new NexxusEnvVarsConfigProvider());
     this.defaultProviders.push(new NexxusCliArgConfigProvider());
@@ -82,12 +80,12 @@ export class ConfigurationManager {
     }
   }
 
-  public addCliArgsToSpec(source: string, spec: Array<CliArgsSpec>): void {
-    this.cliArgsSpecs.push({ source, spec });
+  public addCliArgsToSpec(source: string, specs: Array<CliArgsSpec>): void {
+    this.cliArgsSpecs.push({ source, specs });
   }
 
-  public addEnvVarsToSpec(source: string, spec: Array<EnvVarsSpec>): void {
-    this.envVarsSpecs.push({ source, spec });
+  public addEnvVarsToSpec(source: string, specs: Array<EnvVarsSpec>): void {
+    this.envVarsSpecs.push({ source, specs });
   }
 
   private populateFromCliArgs(): void {
@@ -99,7 +97,7 @@ export class ConfigurationManager {
     const cliArgProvider = this.defaultProviders.at(-1) as NexxusCliArgConfigProvider;
 
     this.cliArgsSpecs.forEach(spec => {
-      spec.spec.forEach((arg) => {
+      spec.specs.forEach((arg) => {
         if (collectedNames.has(arg.name)) {
           throw new InvalidConfigException(`Duplicate CLI argument name: "${arg.name}". Defined first by source: "${collectedNames.get(arg.name)}" and now by source: "${spec.source}"`);
         }
@@ -113,7 +111,7 @@ export class ConfigurationManager {
     const parsed = cliArgProvider.getConfig();
 
     this.cliArgsSpecs.forEach(spec => {
-      spec.spec.forEach(arg => {
+      spec.specs.forEach(arg => {
         if (parsed[arg.name] !== undefined && parsed[arg.name] !== null) {
           Dot.setProperty(this.data, arg.location, parsed[arg.name]);
         }
@@ -131,7 +129,7 @@ export class ConfigurationManager {
     const envResult = envVarProvider.getConfig();
 
     this.envVarsSpecs.forEach(spec => {
-      spec.spec.forEach(envVar => {
+      spec.specs.forEach(envVar => {
         if (collectedNames.has(envVar.name)) {
           throw new InvalidConfigException(`Duplicate Env var: "${envVar.name}". Defined first by source: "${collectedNames.get(envVar.name)}" and now by source: "${spec.source}"`);
         }
@@ -147,8 +145,21 @@ export class ConfigurationManager {
     });
   }
 
-  public isValid() : boolean {
-    const fileConfigProvider = this.defaultProviders.at(0) as NexxusFileConfigProvider;
+  private formatAjvErrors(errors: ConfigErrorObject) : string {
+    return errors.map(err => {
+      return `\n${err.instancePath}:\n\t${err.message}\n`;
+    }).join("\n");
+  }
+
+  public populateFromCustomProviders(): void {
+    //TODO:
+    /* this.customProviders.forEach(provider => {
+      this.data = provider.getConfig();
+    }); */
+  }
+
+  public validate() : boolean {
+    const fileConfigProvider = this.defaultProviders[0] as NexxusFileConfigProvider;
 
     this.data = fileConfigProvider.getConfig();
 
@@ -171,18 +182,14 @@ export class ConfigurationManager {
     const result : boolean = validator(this.data);
 
     if (!result) {
-      this.validationErrors = validator.errors;
+      const validationOutput = this.formatAjvErrors(validator.errors as ConfigErrorObject);
 
-      return false;
+      throw new FatalErrorException('Could not validate configuration' + validationOutput);
     }
 
     // this.data = combinedData;
 
     return true;
-  }
-
-  public getErrors(): ConfigErrorObject {
-    return this.validationErrors;
   }
 
   public getConfig(): NexxusConfig {
