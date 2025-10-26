@@ -11,20 +11,26 @@ import {
 import { Ajv, ErrorObject } from "ajv";
 import * as Dot from "dot-prop";
 import deepMerge from "deepmerge";
-import type { JSONSchema7 } from "json-schema";
+import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-type JsonSchema = JSONSchema7;
 type ConfigErrorObject = ErrorObject<string, Record<string, any>, unknown>[];
+
+export type AddJsonSchemaDefFuncArg = {
+  name: string;
+  where: string;
+  definition: JSONSchema7Definition;
+  required: boolean;
+}
 
 type EnvVarsSpec = {
   name: string;
   location: string;
 };
 
-type EnvVars = {
+export type ConfigEnvVars = {
   source: string;
   specs: Array<EnvVarsSpec>;
 };
@@ -35,7 +41,7 @@ type CliArgsSpec = {
   type: CliArgType;
 }
 
-type CliArgs = {
+export type ConfigCliArgs = {
   source: string;
   specs: Array<CliArgsSpec>;
 };
@@ -43,49 +49,49 @@ type CliArgs = {
 export class ConfigurationManager {
   private static CONF_FILE_NAME : Readonly<string> = "nexxus.conf.json";
 
-  private jsonSchema: JsonSchema;
-  private envVarsSpecs: Array<EnvVars> = [];
-  private cliArgsSpecs: Array<CliArgs> = [];
+  private jsonSchema: JSONSchema7;
+  private envVarsSpecs: Array<ConfigEnvVars> = [];
+  private cliArgsSpecs: Array<ConfigCliArgs> = [];
   private data: NexxusConfig = {};
 
-  private defaultProviders : Array<INexxusConfigProvider> = [];
+  private configProviders : Array<INexxusConfigProvider> = [];
   private customProviders : Array<INexxusConfigProvider> = [];
 
   constructor() {
     const schemaPath = path.join(__dirname, "../../src/schemas/root.schema.json");
 
     this.jsonSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
-    this.defaultProviders.push(new NexxusFileConfigProvider(path.join(process.cwd(), ConfigurationManager.CONF_FILE_NAME)));
-    this.defaultProviders.push(new NexxusEnvVarsConfigProvider());
-    this.defaultProviders.push(new NexxusCliArgConfigProvider());
+    this.configProviders.push(new NexxusFileConfigProvider(path.join(process.cwd(), ConfigurationManager.CONF_FILE_NAME)));
+    this.configProviders.push(new NexxusEnvVarsConfigProvider());
+    this.configProviders.push(new NexxusCliArgConfigProvider());
   }
 
   public addCustomProvider(provider: INexxusConfigProvider): void {
-    this.defaultProviders.splice(1, 0, provider);
+    this.configProviders.splice(1, 0, provider);
   }
 
-  public addDatabaseSchemaModel(jsonSchema: string): void {
-    if (this.jsonSchema?.$defs?.NexxusDatabase) {
-      throw new InvalidConfigException("Database schema already defined");
-    }
-
+  public addJsonSchemaDef(def: AddJsonSchemaDefFuncArg): void {
     //TODO: validate that jsonSchema is a valid json schema; eg try to ajv compile it
 
     if (this.jsonSchema.$defs !== undefined) {
-      this.jsonSchema.$defs.NexxusDatabase = JSON.parse(jsonSchema);
+      this.jsonSchema.$defs[def.name] = def.definition
     }
 
     if (this.jsonSchema.properties !== undefined) {
-      this.jsonSchema.properties.database = { "$ref": "#/$defs/NexxusDatabase" };
+      this.jsonSchema.properties[def.where] = { "$ref": `#/$defs/${def.name}` } as JSONSchema7Definition;
+    }
+
+    if (def.required) {
+      this.jsonSchema.required?.push(def.where);
     }
   }
 
-  public addCliArgsToSpec(source: string, specs: Array<CliArgsSpec>): void {
-    this.cliArgsSpecs.push({ source, specs });
+  public addCliArgsToSpec(cliArgSpec: ConfigCliArgs): void {
+    this.cliArgsSpecs.push(cliArgSpec);
   }
 
-  public addEnvVarsToSpec(source: string, specs: Array<EnvVarsSpec>): void {
-    this.envVarsSpecs.push({ source, specs });
+  public addEnvVarsToSpec(envVarSpec: ConfigEnvVars): void {
+    this.envVarsSpecs.push(envVarSpec);
   }
 
   private populateFromCliArgs(): void {
@@ -94,7 +100,7 @@ export class ConfigurationManager {
     }
 
     const collectedNames : Map<string, string> = new Map();
-    const cliArgProvider = this.defaultProviders.at(-1) as NexxusCliArgConfigProvider;
+    const cliArgProvider = this.configProviders.at(-1) as NexxusCliArgConfigProvider;
 
     this.cliArgsSpecs.forEach(spec => {
       spec.specs.forEach((arg) => {
@@ -125,16 +131,17 @@ export class ConfigurationManager {
     }
 
     const collectedNames: Map<string, string> = new Map();
-    const envVarProvider = this.defaultProviders.at(-2) as NexxusEnvVarsConfigProvider;
+    const envVarProvider = this.configProviders.at(-2) as NexxusEnvVarsConfigProvider;
     const envResult = envVarProvider.getConfig();
+    const prefix = NexxusEnvVarsConfigProvider.ENV_VAR_PREFIX;
 
     this.envVarsSpecs.forEach(spec => {
       spec.specs.forEach(envVar => {
         if (collectedNames.has(envVar.name)) {
-          throw new InvalidConfigException(`Duplicate Env var: "${envVar.name}". Defined first by source: "${collectedNames.get(envVar.name)}" and now by source: "${spec.source}"`);
+          throw new InvalidConfigException(`Duplicate Env var: "${prefix}_${envVar.name}". Defined first by source: "${collectedNames.get(envVar.name)}" and now by source: "${spec.source}"`);
         }
 
-        const value = envResult[envVar.name];
+        const value = envResult[`${prefix}_${envVar.name}`];
 
         if (value !== undefined) {
           Dot.setProperty(this.data, envVar.location, value);
@@ -158,8 +165,8 @@ export class ConfigurationManager {
     }); */
   }
 
-  public validate() : boolean {
-    const fileConfigProvider = this.defaultProviders[0] as NexxusFileConfigProvider;
+  public validate() : void {
+    const fileConfigProvider = this.configProviders[0] as NexxusFileConfigProvider;
 
     this.data = fileConfigProvider.getConfig();
 
@@ -186,13 +193,13 @@ export class ConfigurationManager {
 
       throw new FatalErrorException('Could not validate configuration' + validationOutput);
     }
-
-    // this.data = combinedData;
-
-    return true;
   }
 
-  public getConfig(): NexxusConfig {
-    return this.data;
+  public getConfig(field?: string): NexxusConfig {
+    if (!field) {
+      return this.data;
+    }
+
+    return this.data[field];
   }
 }

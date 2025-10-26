@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "properties": {
+    "level": {
+      "type": "string",
+      "enum": ["debug", "info", "warn", "error", "critical", "alert", "emerg"]
+    },
+    "timestamps": {
+      "type": "boolean"
+    },
+    "colors": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "level"
+  ]
+}

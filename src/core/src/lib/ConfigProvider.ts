@@ -4,7 +4,7 @@ import * as fs from "fs";
 
 import { ArgumentParser, SUPPRESS } from "argparse";
 
-export type NexxusConfig = { [key: string]: unknown };
+export type NexxusConfig = { [key: string]: unknown | NexxusConfig } | any;
 export type CliArgType = "int" | "str" | "boolean" | "float";
 
 export interface INexxusConfigProvider {

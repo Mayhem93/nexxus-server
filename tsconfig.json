@@ -20,6 +20,7 @@
     "resolveJsonModule": true,
     "useUnknownInCatchVariables": false,
     "experimentalDecorators": true,
+    "sourceMap": true
   },
   "include": ["src/"],
   "exclude": ["node_modules/", "**/*.spec.ts", "vitest.*.ts"]
