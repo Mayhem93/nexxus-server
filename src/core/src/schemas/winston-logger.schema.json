@@ -5,6 +5,10 @@
       "type": "string",
       "enum": ["debug", "info", "warn", "error", "critical", "alert", "emerg"]
     },
+    "logType": {
+      "type": "string",
+      "enum": ["text", "json"]
+    },
     "timestamps": {
       "type": "boolean"
     },
@@ -13,6 +17,7 @@
     }
   },
   "required": [
-    "level"
+    "level",
+    "logType"
   ]
 }

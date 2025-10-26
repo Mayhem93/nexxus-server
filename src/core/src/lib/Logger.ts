@@ -6,6 +6,8 @@ import { JSONSchema7Definition } from 'json-schema';
 import * as fs from 'fs';
 import * as path from "node:path";
 
+type LoggableType = string | object | number | boolean | null | undefined;
+
 export enum NexxusLoggerLevels {
   EMERGENCY = "emerg",
   ALERT = "alert",
@@ -18,11 +20,11 @@ export enum NexxusLoggerLevels {
 }
 
 export interface INexxusLogger {
-  log(level: NexxusLoggerLevels, message: string): void
+  log(level: NexxusLoggerLevels, message: LoggableType): void
 }
 
 export interface INexxusAsyncLogger extends INexxusLogger {
-  log(level: NexxusLoggerLevels, message: string): Promise<void>
+  log(level: NexxusLoggerLevels, message: LoggableType): Promise<void>
 }
 
 export abstract class BaseNexxusLogger implements INexxusLogger {
@@ -52,33 +54,33 @@ export abstract class BaseNexxusLogger implements INexxusLogger {
     };
   }
 
-  public abstract log(level: NexxusLoggerLevels, message: string): void
+  public abstract log(level: NexxusLoggerLevels, message: LoggableType): void
 
-  public debug(message: string): void {
+  public debug(message: LoggableType): void {
     this.log(NexxusLoggerLevels.DEBUG, message);
   }
 
-  public info(message: string): void {
+  public info(message: LoggableType): void {
     this.log(NexxusLoggerLevels.INFO, message);
   }
 
-  public warn(message: string): void {
+  public warn(message: LoggableType): void {
     this.log(NexxusLoggerLevels.WARNING, message);
   }
 
-  public error(message: string): void {
+  public error(message: LoggableType): void {
     this.log(NexxusLoggerLevels.ERROR, message);
   }
 
-  public critical(message: string): void {
+  public critical(message: LoggableType): void {
     this.log(NexxusLoggerLevels.CRITICAL, message);
   }
 
-  public alert(message: string): void {
+  public alert(message: LoggableType): void {
     this.log(NexxusLoggerLevels.ALERT, message);
   }
 
-  public emerg(message: string): void {
+  public emerg(message: LoggableType): void {
     this.log(NexxusLoggerLevels.EMERGENCY, message);
   }
 }
@@ -109,11 +111,65 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
     let format : Winston.Logform.Format;
 
     if (this.config.logType === "json") {
-      format = Winston.format.json();
+      format = Winston.format.json({
+        circularValue: '[circular]'
+      });
+
+      format = Winston.format.combine(
+        Winston.format.printf(info => {
+          if (info.message === undefined) {
+            const { level, label, timestamp, ...rest } = info;
+            const restkeys = Object.keys(rest);
+
+            restkeys.forEach(key => {
+              delete info[key];
+            });
+
+            info.message = rest;
+          }
+
+          info.label = info.label || "default-label";
+
+          return JSON.stringify(info);
+        }),
+        format
+      );
+
+      format = Winston.format.combine(
+        Winston.format.label({ label: this.config.label, message: false }),
+        format
+      )
+
+      if (this.config.timestamps) {
+        format = Winston.format.combine(
+          Winston.format.timestamp(),
+          format
+        );
+      }
     } else {
       format = Winston.format.printf(info => {
-        return `[${info.timestamp}] ${info.level.toLocaleUpperCase()} [${info.label || "default-label"}]: ${info.message}`;
+        console.log(info);
+        let result = '';
+
+        if (info.message === undefined) {
+          const isMetadataEmpty = Object.keys(info.metadata as object).length === 0;
+
+          info.message = isMetadataEmpty ? 'undefined' :JSON.stringify(info.metadata);
+        }
+
+        info.label = info.label || "default-label";
+
+        if (info.timestamp){
+          result += `[${info.timestamp}] `;
+        }
+
+        return result + `${info.level.toLocaleUpperCase()} [${info.label}]: ${info.message}`;
       });
+
+      format = Winston.format.combine(
+        Winston.format.metadata({ fillExcept: ['message', 'level', 'timestamp', 'label'] }),
+        format
+      );
 
       if (this.config.timestamps) {
         format = Winston.format.combine(
@@ -144,7 +200,7 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
     });
   }
 
-  public log(level: NexxusLoggerLevels, message: string): void {
+  public log(level: NexxusLoggerLevels, message: LoggableType): void {
     this.winston.log(level, message);
   }
 }
