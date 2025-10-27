@@ -148,7 +148,6 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
       }
     } else {
       format = Winston.format.printf(info => {
-        console.log(info);
         let result = '';
 
         if (info.message === undefined) {

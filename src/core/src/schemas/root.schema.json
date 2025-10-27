@@ -2,9 +2,6 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "database": {
-      "$ref": "#/invalid"
-    },
     "app": {
       "$ref": "#/$defs/NexxusMain"
     }
@@ -28,7 +25,6 @@
     }
   },
   "required": [
-    "database",
     "app"
   ],
   "additionalProperties": true
