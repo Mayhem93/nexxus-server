@@ -82,7 +82,11 @@ export class ConfigurationManager {
     }
 
     if (def.required) {
-      this.jsonSchema.required?.push(def.where);
+      if (this.jsonSchema.required === undefined) {
+        this.jsonSchema.required = [];
+      }
+
+      this.jsonSchema.required.push(def.where);
     }
   }
 

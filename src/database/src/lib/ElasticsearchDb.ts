@@ -2,7 +2,9 @@ import { NexxusModel } from "../models/Model";
 import { NexxusDatabaseAdapter } from "./DatabaseAdapter";
 import { ConfigCliArgs, ConfigEnvVars, ConnectionException } from "@nexxus/core";
 
-import * as ElasticSearch from '@elastic/elasticsearch'; // Assuming an Elasticsearch client library is used
+import * as ElasticSearch from '@elastic/elasticsearch';
+
+import * as path from "node:path";
 
 interface ElasticsearchConfig {
   host: string;
@@ -14,9 +16,9 @@ interface ElasticsearchConfig {
 export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
   private client: ElasticSearch.Client;
 
-  protected static schemaPath: string = "../../src/schemas/elasticsearch.schema.json";
+  protected static schemaPath: string = path.join(__dirname, "../../src/schemas/elasticsearch.schema.json");
   protected static envVars: ConfigEnvVars = {
-    source: "NexxusElasticsearchDb",
+    source: this.name,
     specs: [
       {
         name: "DB_HOST",
@@ -37,7 +39,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
     ]
   };
   protected static cliArgs: ConfigCliArgs = {
-    source: "NexxusElasticsearchDb",
+    source: this.name,
     specs: []
   };
 

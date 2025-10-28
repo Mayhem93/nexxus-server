@@ -1,10 +1,9 @@
 import { ConfigEnvVars, ConfigCliArgs, AddJsonSchemaDefFuncArg } from './ConfigManager';
 
 import * as Winston from 'winston';
-import { JSONSchema7Definition } from 'json-schema';
 
-import * as fs from 'fs';
 import * as path from "node:path";
+import { NexxusBaseService } from './BaseService';
 
 type LoggableType = string | object | number | boolean | null | undefined;
 
@@ -27,32 +26,7 @@ export interface INexxusAsyncLogger extends INexxusLogger {
   log(level: NexxusLoggerLevels, message: LoggableType): Promise<void>
 }
 
-export abstract class BaseNexxusLogger implements INexxusLogger {
-  protected static envVars: ConfigEnvVars;
-  protected static cliArgs: ConfigCliArgs;
-  protected static schemaPath: string;
-  private static schemaContents: string;
-
-  public static envVarConfig(): ConfigEnvVars {
-    return this.envVars;
-  }
-
-  public static cliArgConfig(): ConfigCliArgs {
-    return this.cliArgs;
-  }
-
-  public static schema(): AddJsonSchemaDefFuncArg {
-    if (!this.schemaContents) {
-      BaseNexxusLogger.schemaContents = fs.readFileSync(path.join(__dirname, this.schemaPath), 'utf-8');
-    }
-
-    return {
-      name: "WinstonNexxusLogger",
-      where: "logger",
-      definition: JSON.parse(BaseNexxusLogger.schemaContents) as JSONSchema7Definition,
-      required: true
-    };
-  }
+export abstract class BaseNexxusLogger extends NexxusBaseService implements INexxusLogger {
 
   public abstract log(level: NexxusLoggerLevels, message: LoggableType): void
 
@@ -86,11 +60,10 @@ export abstract class BaseNexxusLogger implements INexxusLogger {
 }
 
 export class WinstonNexxusLogger extends BaseNexxusLogger {
-  private config : { [key: string]: any } = {};
   private winston : Winston.Logger;
-  protected static schemaPath: string = "../../src/schemas/winston-logger.schema.json";
+  protected static schemaPath: string = path.join(__dirname, "../../src/schemas/winston-logger.schema.json");
   protected static envVars: ConfigEnvVars = {
-    source: "WinstonNexxusLogger",
+    source: this.name,
     specs: [
       {
         name: "LOG_LEVEL",
@@ -99,7 +72,7 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
     ]
   };
   protected static cliArgs: ConfigCliArgs = {
-    source: "WinstonNexxusLogger",
+    source: this.name,
     specs: []
   }
 
