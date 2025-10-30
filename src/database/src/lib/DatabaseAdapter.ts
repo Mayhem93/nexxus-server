@@ -8,6 +8,7 @@ export enum NexxusDatabaseAdapterEvents {
 }
 
 export abstract class NexxusDatabaseAdapter extends NexxusBaseService {
+  protected static loggerLabel : Readonly<string> = "NxxDatabase";
   constructor(config: any) {
     super();
 

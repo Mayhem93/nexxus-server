@@ -19,43 +19,43 @@ export enum NexxusLoggerLevels {
 }
 
 export interface INexxusLogger {
-  log(level: NexxusLoggerLevels, message: LoggableType): void
+  log(level: NexxusLoggerLevels, message: LoggableType, label?: string): void
 }
 
 export interface INexxusAsyncLogger extends INexxusLogger {
-  log(level: NexxusLoggerLevels, message: LoggableType): Promise<void>
+  log(level: NexxusLoggerLevels, message: LoggableType, label?: string): Promise<void>
 }
 
 export abstract class BaseNexxusLogger extends NexxusBaseService implements INexxusLogger {
 
-  public abstract log(level: NexxusLoggerLevels, message: LoggableType): void
+  public abstract log(level: NexxusLoggerLevels, message: LoggableType, label?: string): void
 
-  public debug(message: LoggableType): void {
-    this.log(NexxusLoggerLevels.DEBUG, message);
+  public debug(message: LoggableType, label?: string): void {
+    this.log(NexxusLoggerLevels.DEBUG, message, label);
   }
 
-  public info(message: LoggableType): void {
-    this.log(NexxusLoggerLevels.INFO, message);
+  public info(message: LoggableType, label?: string): void {
+    this.log(NexxusLoggerLevels.INFO, message, label);
   }
 
-  public warn(message: LoggableType): void {
-    this.log(NexxusLoggerLevels.WARNING, message);
+  public warn(message: LoggableType, label?: string): void {
+    this.log(NexxusLoggerLevels.WARNING, message, label);
   }
 
-  public error(message: LoggableType): void {
-    this.log(NexxusLoggerLevels.ERROR, message);
+  public error(message: LoggableType, label?: string): void {
+    this.log(NexxusLoggerLevels.ERROR, message, label);
   }
 
-  public critical(message: LoggableType): void {
-    this.log(NexxusLoggerLevels.CRITICAL, message);
+  public critical(message: LoggableType, label?: string): void {
+    this.log(NexxusLoggerLevels.CRITICAL, message, label);
   }
 
-  public alert(message: LoggableType): void {
-    this.log(NexxusLoggerLevels.ALERT, message);
+  public alert(message: LoggableType, label?: string): void {
+    this.log(NexxusLoggerLevels.ALERT, message, label);
   }
 
-  public emerg(message: LoggableType): void {
-    this.log(NexxusLoggerLevels.EMERGENCY, message);
+  public emerg(message: LoggableType, label?: string): void {
+    this.log(NexxusLoggerLevels.EMERGENCY, message, label);
   }
 }
 
@@ -90,15 +90,18 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
 
       format = Winston.format.combine(
         Winston.format.printf(info => {
-          if (info.message === undefined) {
-            const { level, label, timestamp, ...rest } = info;
-            const restkeys = Object.keys(rest);
+          const msg = info.message as string;
 
-            restkeys.forEach(key => {
-              delete info[key];
-            });
-
-            info.message = rest;
+          if (msg.startsWith("{") || msg.startsWith("[")) {
+            try {
+              info.message = JSON.parse(msg);
+            } catch (e) {
+              if (e.message.includes("Unexpected")) {
+                info.message = msg;
+              } else {
+                throw e;
+              }
+            }
           }
 
           info.label = info.label || "default-label";
@@ -107,11 +110,6 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
         }),
         format
       );
-
-      format = Winston.format.combine(
-        Winston.format.label({ label: this.config.label, message: false }),
-        format
-      )
 
       if (this.config.timestamps) {
         format = Winston.format.combine(
@@ -150,11 +148,6 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
         );
       }
 
-      format = Winston.format.combine(
-        Winston.format.label({ label: this.config.label }),
-        format
-      )
-
       if (this.config.colors) {
         format = Winston.format.combine(
           Winston.format.colorize(),
@@ -172,7 +165,12 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
     });
   }
 
-  public log(level: NexxusLoggerLevels, message: LoggableType): void {
-    this.winston.log(level, message);
+  public log(level: NexxusLoggerLevels, message: LoggableType, label?: string): void {
+    if (typeof message === 'object' || Array.isArray(message)) {
+      message = JSON.stringify(message);
+    } else {
+      message = String(message);
+    }
+    this.winston.log(level, message, { label });
   }
 }

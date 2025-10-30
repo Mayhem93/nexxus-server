@@ -1,6 +1,13 @@
 import { NexxusModel } from "../models/Model";
+import { NexxusApplication } from "../models/Application";
 import { NexxusDatabaseAdapter } from "./DatabaseAdapter";
-import { ConfigCliArgs, ConfigEnvVars, ConnectionException } from "@nexxus/core";
+import {
+  NexxusGlobalServices as NxxSvcs,
+  ConfigCliArgs,
+  ConfigEnvVars,
+  ConnectionException,
+  NEXXUS_PREFIX_LC
+} from "@nexxus/core";
 
 import * as ElasticSearch from '@elastic/elasticsearch';
 
@@ -13,8 +20,20 @@ interface ElasticsearchConfig {
   password: string;
 }
 
+type ESBulkItemHeader = {
+  index: {
+    _id: string;
+    _index: string;
+  }
+};
+
+type ESBulkRequest = {
+  body: Array<ESBulkItemHeader | NexxusModel>;
+}
+
 export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
   private client: ElasticSearch.Client;
+  private collectedIndices : Set<string> = new Set();
 
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/elasticsearch.schema.json");
   protected static envVars: ConfigEnvVars = {
@@ -58,8 +77,24 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
   async connect(): Promise<void> {
     try {
       await this.client.ping({}, { requestTimeout: 2000, maxRetries: 5});
-    } catch (e) {
-      throw new ConnectionException("Failed to connect to Elasticsearch database");
+
+      NxxSvcs.logger.debug("Connection established with Elasticsearch database", NexxusDatabaseAdapter.loggerLabel);
+
+      // scan elasticsearch for indices and collect them
+      const indices: ElasticSearch.estypes.CatIndicesResponse = await this.client.cat.indices({ format: "json" });
+
+      NxxSvcs.logger.debug(`Found ${indices.length} indices in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
+
+      indices.forEach(indexInfo => {
+        this.collectedIndices.add(indexInfo.index as string);
+      });
+
+    } catch (e : Error | unknown) {
+      if (e instanceof ElasticSearch.errors.ConnectionError) {
+        throw new ConnectionException("Failed to connect to Elasticsearch database");
+      } else {
+        throw e;
+      }
     }
   }
 
@@ -71,8 +106,40 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
     return this.client.close();
   }
 
+  private async createIndexIfNotExists(indexName: string): Promise<void> {
+    if (!this.collectedIndices.has(indexName)) {
+      NxxSvcs.logger.debug(`Creating index ${indexName} in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
+
+      await this.client.indices.create({ index: indexName });
+
+      NxxSvcs.logger.debug(`Index ${indexName} created in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
+
+      this.collectedIndices.add(indexName);
+    }
+  }
+
   async createItems(collection: Array<NexxusModel>): Promise<void> {
-    // Implementation for creating items in Elasticsearch
+    const bulkReq : ESBulkRequest = { body: [] };
+
+    for (const item of collection) {
+      const itemData = item.getData();
+      let index: string;
+
+      if (item instanceof NexxusApplication) {
+        index = `${NEXXUS_PREFIX_LC}-applications`;
+      } else {
+        index = `${NEXXUS_PREFIX_LC}-default`;
+      }
+
+      await this.createIndexIfNotExists(index);
+
+      bulkReq.body.push(
+        { index: { _index: index, _id: itemData.id } },
+        item
+      );
+    }
+
+    await this.client.bulk(bulkReq);
   }
 
   async getItems(collection: Array<NexxusModel>, query: any): Promise<Array<NexxusModel>> {
