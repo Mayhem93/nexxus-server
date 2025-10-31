@@ -1,18 +1,18 @@
-import { NexxusBaseModel, NexxusModel } from "./Model";
+import { NexxusBaseModelType, NexxusBaseModel } from "./Model";
 
-type NexxusApplicationModel = NexxusBaseModel & {
+type NexxusApplicationModelType = NexxusBaseModelType & {
   type: "application";
   name: string;
   description?: string;
   ownerId: string | number;
-  isActive: boolean;
+  isActive: boolean
 };
 
-type ApplicationConstructorParams = Pick<NexxusApplicationModel, "name" | "ownerId" | "isActive" | "description">;
+type ApplicationConstructorParams = Pick<NexxusApplicationModelType, "name" | "ownerId" | "isActive" | "description">;
 
-export class NexxusApplication extends NexxusModel {
+export class NexxusApplication extends NexxusBaseModel {
   constructor(data: ApplicationConstructorParams) {
-    super(data as NexxusApplicationModel);
+    super(data as NexxusApplicationModelType);
   }
 
   async save(): Promise<void> {

@@ -4,17 +4,17 @@ type NexxusGenericModel = {
   [key: string]: any | NexxusGenericModel;
 };
 
-export type NexxusBaseModel = NexxusGenericModel & {
+export type NexxusBaseModelType = NexxusGenericModel & {
   id: string;
   createdAt: number;
   updatedAt: number;
   type?: string;
 };
 
-export abstract class NexxusModel {
-  protected data: NexxusBaseModel;
+export abstract class NexxusBaseModel {
+  protected data: NexxusBaseModelType;
 
-  constructor(data: NexxusBaseModel) {
+  constructor(data: NexxusBaseModelType) {
     this.data = data;
 
     const now = Math.floor(Date.now()/1000);
@@ -32,7 +32,7 @@ export abstract class NexxusModel {
     }
   }
 
-  getData(): NexxusBaseModel {
+  getData(): NexxusBaseModelType {
     return this.data;
   }
 

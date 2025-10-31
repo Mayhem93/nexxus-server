@@ -1,4 +1,4 @@
-import { NexxusModel } from "../models/Model";
+import { NexxusBaseModel } from "../models/Model";
 import { NexxusApplication } from "../models/Application";
 import { NexxusDatabaseAdapter } from "./DatabaseAdapter";
 import {
@@ -28,12 +28,12 @@ type ESBulkItemHeader = {
 };
 
 type ESBulkRequest = {
-  body: Array<ESBulkItemHeader | NexxusModel>;
+  body: Array<ESBulkItemHeader | NexxusBaseModel>;
 }
 
 export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
   private client: ElasticSearch.Client;
-  private collectedIndices : Set<string> = new Set();
+  private collectedIndices: Set<string> = new Set();
 
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/elasticsearch.schema.json");
   protected static envVars: ConfigEnvVars = {
@@ -80,8 +80,12 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
 
       NxxSvcs.logger.debug("Connection established with Elasticsearch database", NexxusDatabaseAdapter.loggerLabel);
 
-      // scan elasticsearch for indices and collect them
-      const indices: ElasticSearch.estypes.CatIndicesResponse = await this.client.cat.indices({ format: "json" });
+      const indices: ElasticSearch.estypes.CatIndicesResponse = await this.client.cat.indices({
+        format: "json",
+        h: ["index"],
+        index: `${NEXXUS_PREFIX_LC}-*`,
+        expand_wildcards: "open"
+      });
 
       NxxSvcs.logger.debug(`Found ${indices.length} indices in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
 
@@ -118,7 +122,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
     }
   }
 
-  async createItems(collection: Array<NexxusModel>): Promise<void> {
+  async createItems(collection: Array<NexxusBaseModel>): Promise<void> {
     const bulkReq : ESBulkRequest = { body: [] };
 
     for (const item of collection) {
@@ -142,16 +146,16 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
     await this.client.bulk(bulkReq);
   }
 
-  async getItems(collection: Array<NexxusModel>, query: any): Promise<Array<NexxusModel>> {
+  async getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>> {
     // Implementation for retrieving items from Elasticsearch
     return [];
   }
 
-  async updateItems(collection: Array<NexxusModel>, query: any, updates: any): Promise<void> {
+  async updateItems(collection: Array<NexxusBaseModel>, query: any, updates: any): Promise<void> {
     // Implementation for updating items in Elasticsearch
   }
 
-  async deleteItems(collection: Array<NexxusModel>, query: any): Promise<void> {
+  async deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void> {
     // Implementation for deleting items from Elasticsearch
   }
 }
