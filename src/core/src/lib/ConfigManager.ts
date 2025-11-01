@@ -145,7 +145,7 @@ export class NexxusConfigManager {
           throw new InvalidConfigException(`Duplicate Env var: "${prefix}_${envVar.name}". Defined first by source: "${collectedNames.get(envVar.name)}" and now by source: "${spec.source}"`);
         }
 
-        const value = envResult[`${prefix}_${envVar.name}`];
+        const value = envResult?.[`${prefix}_${envVar.name}`];
 
         if (value !== undefined) {
           Dot.setProperty(this.data, envVar.location, value);
@@ -199,7 +199,7 @@ export class NexxusConfigManager {
     }
   }
 
-  public getConfig(field?: string): NexxusConfig {
+  public getConfig(field?: string): any {
     if (!field) {
       return this.data;
     }

@@ -4,11 +4,11 @@ import * as fs from "fs";
 
 import { ArgumentParser, SUPPRESS } from "argparse";
 
-export type NexxusConfig = { [key: string]: unknown | NexxusConfig } | any;
+export type NexxusConfig = Record<string, any>;
 export type CliArgType = "int" | "str" | "boolean" | "float";
 
 export interface INexxusConfigProvider {
-  getConfig(): Object | Promise<Object>
+  getConfig(): NexxusConfig | Promise<NexxusConfig>
 }
 
 export abstract class NexxusConfigProvider implements INexxusConfigProvider {

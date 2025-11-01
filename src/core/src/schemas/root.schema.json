@@ -1,31 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "properties": {
-    "app": {
-      "$ref": "#/$defs/NexxusMain"
-    }
-  },
-  "$defs": {
-    "NexxusMain": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "debug": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "additionalProperties": true
-    }
-  },
-  "required": [
-    "app"
-  ],
+  "properties": {},
+  "$defs": {},
+  "required": [],
   "additionalProperties": true
 }

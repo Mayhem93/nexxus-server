@@ -1,9 +1,10 @@
-import { ConfigEnvVars, ConfigCliArgs, AddJsonSchemaDefFuncArg } from './ConfigManager';
+import { ConfigEnvVars, ConfigCliArgs } from './ConfigManager';
+import { NexxusBaseService } from './BaseService';
+import { NexxusConfig } from './ConfigProvider';
 
 import * as Winston from 'winston';
 
 import * as path from "node:path";
-import { NexxusBaseService } from './BaseService';
 
 type LoggableType = string | object | number | boolean | null | undefined;
 
@@ -76,10 +77,8 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
     specs: []
   }
 
-  constructor(config: Object) {
-    super();
-
-    this.config = config;
+  constructor(config: NexxusConfig) {
+    super(config);
 
     let format : Winston.Logform.Format;
 

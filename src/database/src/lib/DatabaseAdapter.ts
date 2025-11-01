@@ -1,4 +1,4 @@
-import { NexxusBaseService } from '@nexxus/core';
+import { NexxusBaseService, NexxusConfig } from '@nexxus/core';
 import { NexxusBaseModel } from "../models/Model";
 
 export enum NexxusDatabaseAdapterEvents {
@@ -9,10 +9,8 @@ export enum NexxusDatabaseAdapterEvents {
 
 export abstract class NexxusDatabaseAdapter extends NexxusBaseService {
   protected static loggerLabel : Readonly<string> = "NxxDatabase";
-  constructor(config: any) {
-    super();
-
-    this.config = config;
+  constructor(config: NexxusConfig) {
+    super(config);
   }
 
   abstract connect(): Promise<void>;

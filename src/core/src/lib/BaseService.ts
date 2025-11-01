@@ -5,14 +5,21 @@ import { JSONSchema7 } from 'json-schema';
 
 import * as fs from "node:fs";
 import { EventEmitter } from 'node:events';
+import { NexxusConfig } from './ConfigProvider';
 
 export abstract class NexxusBaseService extends EventEmitter {
-  protected config: any;
+  protected config: NexxusConfig;
 
   protected static envVars: ConfigEnvVars;
   protected static cliArgs: ConfigCliArgs;
   protected static schemaPath: string;
-  protected static schemaContents: string;
+  private static schemaContents: string;
+
+  constructor(config: NexxusConfig) {
+    super();
+
+    this.config = config;
+  }
 
   public static envVarConfig(): ConfigEnvVars {
       return this.envVars;
