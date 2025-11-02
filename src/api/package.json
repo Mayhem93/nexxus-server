@@ -8,7 +8,7 @@
   "sideEffects": false,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "concurrently 'yarn build:cjs' 'yarn build:esm' 'yarn build:types'",
+    "build": "concurrently \"npm run build:cjs\" \"npm run build:esm\" \"npm run build:types\"",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:types": "tsc -p tsconfig.types.json",
     "build:cjs": "tsc -p tsconfig.cjs.json"
