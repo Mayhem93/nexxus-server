@@ -3,6 +3,7 @@ import { NexxusApplication } from "../models/Application";
 import { NexxusDatabaseAdapter } from "./DatabaseAdapter";
 import {
   NexxusGlobalServices as NxxSvcs,
+  NexxusConfig,
   ConfigCliArgs,
   ConfigEnvVars,
   ConnectionException,
@@ -13,12 +14,12 @@ import * as ElasticSearch from '@elastic/elasticsearch';
 
 import * as path from "node:path";
 
-interface ElasticsearchConfig {
+type ElasticsearchConfig = {
   host: string;
   port: number;
-  username: string;
+  user: string;
   password: string;
-}
+} & NexxusConfig;
 
 type ESBulkItemHeader = {
   index: {
@@ -31,7 +32,7 @@ type ESBulkRequest = {
   body: Array<ESBulkItemHeader | NexxusBaseModel>;
 }
 
-export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
+export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchConfig> {
   private client: ElasticSearch.Client;
   private collectedIndices: Set<string> = new Set();
 
@@ -49,7 +50,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter {
       },
       {
         name: "DB_USERNAME",
-        location: "database.username"
+        location: "database.user"
       },
       {
         name: "DB_PASSWORD",

@@ -1,0 +1,18 @@
+{
+  "$comment": "message_queue",
+  "type": "object",
+  "properties": {
+    "host": {
+      "type": "string"
+    },
+    "port": {
+      "type": "number"
+    },
+    "user": {
+      "type": "string"
+    },
+    "password": {
+      "type": "string"
+    }
+  }
+}

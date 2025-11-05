@@ -41,6 +41,6 @@ const buildPromises = packageDirs.map(pkgName => {
 Promise.all(buildPromises)
   .then(() => console.log('All builds completed.'))
   .catch(err => {
-    console.error('One or more builds failed.');
+    console.error('One or more builds failed. ' + err.message);
     process.exit(1);
   });

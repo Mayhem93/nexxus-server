@@ -7,9 +7,9 @@ export enum NexxusDatabaseAdapterEvents {
   ERROR = "error"
 }
 
-export abstract class NexxusDatabaseAdapter extends NexxusBaseService {
+export abstract class NexxusDatabaseAdapter<T extends NexxusConfig> extends NexxusBaseService<T> {
   protected static loggerLabel : Readonly<string> = "NxxDatabase";
-  constructor(config: NexxusConfig) {
+  constructor(config: T) {
     super(config);
   }
 

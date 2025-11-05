@@ -14,7 +14,11 @@ import { NexxusApiBaseRoute } from './BaseRoute';
 
 type RouteConstructor = new (r: Express.Router) => NexxusApiBaseRoute;
 
-export class NexxusApi extends NexxusBaseService {
+type NexxusApiConfig = {
+  port: number;
+} & NexxusConfig;
+
+export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   private static loggerLabel: Readonly<string> = "NxxApi";
   private app: Express.Express;
   protected static cliArgs: ConfigCliArgs = {
@@ -27,7 +31,7 @@ export class NexxusApi extends NexxusBaseService {
   };
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/api.schema.json");
 
-  constructor(config: NexxusConfig) {
+  constructor(config: NexxusApiConfig) {
     super(config);
 
     this.app = Express();

@@ -142,7 +142,8 @@ export class NexxusConfigManager {
     this.envVarsSpecs.forEach(spec => {
       spec.specs.forEach(envVar => {
         if (collectedNames.has(envVar.name)) {
-          throw new InvalidConfigException(`Duplicate Env var: "${prefix}_${envVar.name}". Defined first by source: "${collectedNames.get(envVar.name)}" and now by source: "${spec.source}"`);
+          throw new InvalidConfigException(`Duplicate Env var: "${prefix}_${envVar.name}".
+            Defined first by source: "${collectedNames.get(envVar.name)}" and now by source: "${spec.source}"`);
         }
 
         const value = envResult?.[`${prefix}_${envVar.name}`];
@@ -156,37 +157,28 @@ export class NexxusConfigManager {
     });
   }
 
+  public async populateFromCustomProviders(): Promise<void> {
+    for (const provider of this.customProviders) {
+      const result = await provider.getConfig();
+
+      this.data = deepMerge(this.data, result);
+    }
+  }
+
   private formatAjvErrors(errors: ConfigErrorObject) : string {
     return errors.map(err => {
       return `\n${err.instancePath}:\n\t${err.message}\n`;
     }).join("\n");
   }
 
-  public populateFromCustomProviders(): void {
-    //TODO:
-    /* this.customProviders.forEach(provider => {
-      this.data = provider.getConfig();
-    }); */
-  }
-
-  public validate() : void {
+  public async validate() : Promise<void> {
     const fileConfigProvider = this.configProviders[0] as NexxusFileConfigProvider;
 
     this.data = fileConfigProvider.getConfig();
 
-    // TODO: handle custom config providers
-    if (this.customProviders.length > 0) {
-      // getConfig() here and then do deep merge
-      // this.data = deepMerge(this.data, result);
-    }
-
-    if (this.cliArgsSpecs.length > 0) {
-      this.populateFromCliArgs();
-    }
-
-    if (this.envVarsSpecs.length > 0) {
-      this.populateFromEnvVars();
-    }
+    await this.populateFromCustomProviders();
+    this.populateFromCliArgs();
+    this.populateFromEnvVars();
 
     const ajv = new Ajv();
     const validator = ajv.compile(this.jsonSchema);
@@ -199,7 +191,7 @@ export class NexxusConfigManager {
     }
   }
 
-  public getConfig(field?: string): any {
+  public getConfig(field?: string): NexxusConfig {
     if (!field) {
       return this.data;
     }

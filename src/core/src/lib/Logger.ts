@@ -19,6 +19,13 @@ export enum NexxusLoggerLevels {
   DEBUG = "debug"
 }
 
+type WinstonNexxusLoggerConfig = {
+  level: NexxusLoggerLevels;
+  logType: "json" | "plain";
+  timestamps: boolean;
+  colors: boolean;
+} & NexxusConfig;
+
 export interface INexxusLogger {
   log(level: NexxusLoggerLevels, message: LoggableType, label?: string): void
 }
@@ -27,7 +34,7 @@ export interface INexxusAsyncLogger extends INexxusLogger {
   log(level: NexxusLoggerLevels, message: LoggableType, label?: string): Promise<void>
 }
 
-export abstract class BaseNexxusLogger extends NexxusBaseService implements INexxusLogger {
+export abstract class BaseNexxusLogger<T extends NexxusConfig> extends NexxusBaseService<T> implements INexxusLogger {
 
   public abstract log(level: NexxusLoggerLevels, message: LoggableType, label?: string): void
 
@@ -60,7 +67,7 @@ export abstract class BaseNexxusLogger extends NexxusBaseService implements INex
   }
 }
 
-export class WinstonNexxusLogger extends BaseNexxusLogger {
+export class WinstonNexxusLogger extends BaseNexxusLogger<WinstonNexxusLoggerConfig> {
   private winston : Winston.Logger;
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/winston-logger.schema.json");
   protected static envVars: ConfigEnvVars = {
@@ -77,7 +84,7 @@ export class WinstonNexxusLogger extends BaseNexxusLogger {
     specs: []
   }
 
-  constructor(config: NexxusConfig) {
+  constructor(config: WinstonNexxusLoggerConfig) {
     super(config);
 
     let format : Winston.Logform.Format;
