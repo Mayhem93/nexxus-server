@@ -1,4 +1,9 @@
-import { ConfigCliArgs, ConfigEnvVars, NexxusConfig } from "@nexxus/core";
+import { ConfigCliArgs,
+  ConfigEnvVars,
+  NexxusConfig,
+  NexxusGlobalServices as NxxSvcs,
+  FatalErrorException
+} from "@nexxus/core";
 import { NexxusMessageQueueAdapter } from "./MessageQueueAdapter";
 
 import * as amqplib from "amqplib";
@@ -46,6 +51,7 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig> {
   };
 
   private connection: amqplib.ChannelModel | null = null;
+  private channel: amqplib.Channel | null = null;
 
   constructor(config: RabbitMQConfig) {
     super(config);
@@ -58,10 +64,21 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig> {
       port: this.config.port,
       username: this.config.user,
       password: this.config.password,
-      vhost: '/',
-      heartbeat: 60
+      vhost: '/nexxus',
+      heartbeat: 10
     });
 
+    this.connection.on('error', (err) => {
+      NxxSvcs.logger.error(`RabbitMQ connection error: ${err.message}`, NexxusRabbitMq.loggerLabel);
+
+      this.reConnect().catch(reconnectErr => {
+        NxxSvcs.logger.error(`Failed to reconnect to RabbitMQ: ${reconnectErr.message}`, NexxusRabbitMq.loggerLabel);
+      });
+    });
+
+    this.channel = await this.connection.createChannel();
+
+    NxxSvcs.logger.info("Connected to RabbitMQ server", NexxusRabbitMq.loggerLabel);
   }
 
   async reConnect(): Promise<void> {
@@ -76,17 +93,36 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig> {
     }
   }
 
-  async publishMessage(
-    queueName: string,
-    message: any
-  ): Promise<void> {
+  async publishMessage(queueName: string, message: any): Promise<void> {
     // Implementation for publishing a message to a RabbitMQ queue
+    const messageBuffer = Buffer.from(JSON.stringify(message));
+
+    // TODO: remove queue assertions when implementing a rabbitmq bootstrap process
+    const res = await this.channel?.assertQueue(queueName, { durable: true });
+
+    if (res === undefined) {
+      throw new FatalErrorException(`Failed to assert RabbitMQ queue ${queueName}`);
+    }
+
+    NxxSvcs.logger.debug(`Asserted RabbitMQ queue ${res.queue}`, NexxusRabbitMq.loggerLabel);
+
+    this.channel?.sendToQueue(queueName, messageBuffer, { persistent: true, contentType: 'application/json' });
   }
 
-  async consumeMessages(
-    queueName: string,
-    onMessage: (message: any) => Promise<void>
-  ): Promise<void> {
-    // Implementation for consuming messages from a RabbitMQ queue
+  async consumeMessages(queueName: string, onMessage: (message: any) => Promise<void> ): Promise<void> {
+    await this.channel?.consume(queueName, async msg => {
+      if (msg !== null) {
+        const messageContent = msg.content.toString();
+        const messageObject = JSON.parse(messageContent);
+
+        NxxSvcs.logger.debug(`Received message from RabbitMQ queue ${queueName}: ${messageContent}`, NexxusRabbitMq.loggerLabel);
+
+        await onMessage(messageObject);
+
+        this.channel?.ack(msg);
+      }
+    });
+
+    return Promise.resolve();
   }
 }

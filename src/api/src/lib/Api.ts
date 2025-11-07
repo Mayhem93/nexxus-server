@@ -35,6 +35,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     super(config);
 
     this.app = Express();
+    this.app.disable("x-powered-by");
   }
 
   public async init(): Promise<void> {
