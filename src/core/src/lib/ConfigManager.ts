@@ -1,4 +1,5 @@
 import { FatalErrorException, InvalidConfigException } from "./Exceptions";
+import { NexxusBaseService } from './BaseService';
 import {
   CliArgType,
   NexxusConfig,
@@ -70,7 +71,7 @@ export class NexxusConfigManager {
     this.configProviders.splice(1, 0, provider);
   }
 
-  public addJsonSchemaDef(def: AddJsonSchemaDefFuncArg): void {
+  private addJsonSchemaDef(def: AddJsonSchemaDefFuncArg): void {
     //TODO: validate that jsonSchema is a valid json schema; eg try to ajv compile it
 
     if (this.jsonSchema.$defs !== undefined) {
@@ -90,11 +91,21 @@ export class NexxusConfigManager {
     }
   }
 
-  public addCliArgsToSpec(cliArgSpec: ConfigCliArgs): void {
+  public validateServices(svcs : Array<typeof NexxusBaseService>) : void {
+    for(const NxxSvc of svcs) {
+      this.addCliArgsToSpec(NxxSvc.cliArgConfig());
+      this.addEnvVarsToSpec(NxxSvc.envVarConfig());
+      this.addJsonSchemaDef(NxxSvc.schema());
+    }
+
+    this.validate();
+  }
+
+  private addCliArgsToSpec(cliArgSpec: ConfigCliArgs): void {
     this.cliArgsSpecs.push(cliArgSpec);
   }
 
-  public addEnvVarsToSpec(envVarSpec: ConfigEnvVars): void {
+  private addEnvVarsToSpec(envVarSpec: ConfigEnvVars): void {
     this.envVarsSpecs.push(envVarSpec);
   }
 
@@ -157,7 +168,7 @@ export class NexxusConfigManager {
     });
   }
 
-  public async populateFromCustomProviders(): Promise<void> {
+  private async populateFromCustomProviders(): Promise<void> {
     for (const provider of this.customProviders) {
       const result = await provider.getConfig();
 
@@ -171,7 +182,7 @@ export class NexxusConfigManager {
     }).join("\n");
   }
 
-  public async validate() : Promise<void> {
+  private async validate() : Promise<void> {
     const fileConfigProvider = this.configProviders[0] as NexxusFileConfigProvider;
 
     this.data = fileConfigProvider.getConfig();

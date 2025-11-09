@@ -58,15 +58,23 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig> {
   }
 
   async connect(): Promise<void> {
-    this.connection = await amqplib.connect({
-      protocol: 'amqp',
-      hostname: this.config.host,
-      port: this.config.port,
-      username: this.config.user,
-      password: this.config.password,
-      vhost: '/nexxus',
-      heartbeat: 10
-    });
+    try {
+      this.connection = await amqplib.connect({
+        protocol: 'amqp',
+        hostname: this.config.host,
+        port: this.config.port,
+        username: this.config.user,
+        password: this.config.password,
+        vhost: '/nexxus',
+        heartbeat: 10
+      });
+    } catch (err) {
+      if (err.name === 'AggregateError') {
+        throw new FatalErrorException(`Failed to connect to RabbitMQ server: ${(err as Error).message}`);
+      }
+
+      throw err;
+    }
 
     this.connection.on('error', (err) => {
       NxxSvcs.logger.error(`RabbitMQ connection error: ${err.message}`, NexxusRabbitMq.loggerLabel);
