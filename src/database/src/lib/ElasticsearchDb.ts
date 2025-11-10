@@ -68,7 +68,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
   };
 
   constructor() {
-    super(NxxSvcs.configManager.getConfig('database') as ElasticsearchConfig);
+    super();
 
     this.client = new ElasticSearch.Client({
       node: `http://${this.config.host}:${this.config.port}`,

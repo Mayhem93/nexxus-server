@@ -6,11 +6,15 @@ import { NexxusException } from './Exceptions';
 type GlobalServicesInitParams = {
   logger?: BaseNexxusLogger<NexxusConfig>;
   configManager?: NexxusConfigManager;
+  database?: unknown;
+  messageQueue?: unknown;
 };
 
 export class NexxusGlobalServices {
   static logger: Readonly<BaseNexxusLogger<NexxusConfig>>;
   static configManager: Readonly<NexxusConfigManager>;
+  static database: unknown;
+  static messageQueue: unknown;
 
   static init(params: GlobalServicesInitParams): void {
     if (params.logger !== undefined) {

@@ -1,4 +1,7 @@
-import { NexxusBaseService, NexxusConfig } from '@nexxus/core';
+import { NexxusBaseService,
+  NexxusConfig,
+  NexxusGlobalServices as NxxSvcs
+} from '@nexxus/core';
 import { NexxusBaseModel } from "../models/Model";
 
 export type NexxusDatabaseAdapterEvents = {
@@ -8,7 +11,11 @@ export type NexxusDatabaseAdapterEvents = {
 }
 
 export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends NexxusDatabaseAdapterEvents>
-  extends NexxusBaseService<T, Ev extends NexxusDatabaseAdapterEvents? Ev : NexxusDatabaseAdapterEvents> {
+  extends NexxusBaseService<T, Ev extends NexxusDatabaseAdapterEvents ? Ev : NexxusDatabaseAdapterEvents> {
+
+  constructor() {
+    super(NxxSvcs.configManager.getConfig('database') as T);
+  }
 
   protected static loggerLabel : Readonly<string> = "NxxDatabase";
 

@@ -1,6 +1,7 @@
 import {
   NexxusConfig,
-  NexxusBaseService
+  NexxusBaseService,
+  NexxusGlobalServices as NxxSvcs
 } from "@nexxus/core";
 
 export type NexxusMessageQueueAdapterEvents = {
@@ -14,6 +15,10 @@ export abstract class NexxusMessageQueueAdapter<T extends NexxusConfig, Ev exten
   extends NexxusBaseService<T, Ev extends NexxusMessageQueueAdapterEvents ? Ev : NexxusMessageQueueAdapterEvents> {
 
   protected static loggerLabel: Readonly<string> = "NxxMessageQueue";
+
+  constructor() {
+    super(NxxSvcs.configManager.getConfig('message_queue') as T);
+  }
 
   abstract connect(): Promise<void>;
   abstract reConnect(): Promise<void>;

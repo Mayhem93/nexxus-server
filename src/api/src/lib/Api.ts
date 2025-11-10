@@ -31,8 +31,8 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   };
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/api.schema.json");
 
-  constructor(config: NexxusApiConfig) {
-    super(config);
+  constructor() {
+    super(NxxSvcs.configManager.getConfig('app') as NexxusApiConfig);
 
     this.app = Express();
     this.app.disable("x-powered-by");

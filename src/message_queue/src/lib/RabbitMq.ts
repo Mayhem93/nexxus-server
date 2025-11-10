@@ -55,10 +55,6 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
   private connection: amqplib.ChannelModel | null = null;
   private channel: amqplib.Channel | null = null;
 
-  constructor() {
-    super(NxxSvcs.configManager.getConfig('message_queue') as RabbitMQConfig);
-  }
-
   async connect(): Promise<void> {
     try {
       this.connection = await amqplib.connect({
