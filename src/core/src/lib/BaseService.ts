@@ -7,6 +7,8 @@ import { JSONSchema7 } from 'json-schema';
 import * as fs from "node:fs";
 import { EventEmitter } from 'node:events';
 
+export type EventMap = Record<string | symbol, any[]>;
+
 function frozen(target: any, propertyKey: string) {
   Object.defineProperty(target, propertyKey, {
     value: Object.freeze(target[propertyKey]),
@@ -15,7 +17,34 @@ function frozen(target: any, propertyKey: string) {
   });
 }
 
-export abstract class NexxusBaseService<T extends NexxusConfig> extends EventEmitter {
+class TypedEventEmitter<E> {
+  private emitter: EventEmitter;
+
+  constructor() {
+    this.emitter = new EventEmitter();
+  }
+
+  on<K extends keyof E>(event: K, listener: (...payload: E[K] extends any[] ? E[K] : never) => void): this {
+    this.emitter.on(event as string | symbol, listener);
+    return this;
+  }
+
+  once<K extends keyof E>(event: K, listener: (...payload: E[K] extends any[] ? E[K] : never) => void): this {
+    this.emitter.once(event as string | symbol, listener);
+    return this;
+  }
+
+  off<K extends keyof E>(event: K, listener: (...payload: E[K] extends any[] ? E[K] : never) => void): this {
+    this.emitter.off(event as string | symbol, listener);
+    return this;
+  }
+
+  emit<K extends keyof E>(event: K, ...payload: E[K] extends any[] ? E[K] : never): boolean {
+    return this.emitter.emit(event as string | symbol, ...payload);
+  }
+}
+
+export abstract class NexxusBaseService<T extends NexxusConfig, Ev extends EventMap = {}> extends TypedEventEmitter<Ev> {
   @frozen
   protected config: Readonly<T>;
 
@@ -59,8 +88,8 @@ export abstract class NexxusBaseService<T extends NexxusConfig> extends EventEmi
 
     if (!definition.$comment) {
       throw new FatalErrorException(`Schema for ${this.name} is missing $comment field. ` +
-        "This field is required to specify where in the main config this specific configuration " +
-        "should be placed.");
+        'This field is required to specify where in the main config this specific configuration ' +
+        'should be placed.');
     }
 
     return {

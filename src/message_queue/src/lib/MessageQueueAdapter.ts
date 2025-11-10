@@ -3,18 +3,17 @@ import {
   NexxusBaseService
 } from "@nexxus/core";
 
-export enum NexxusMessageQueueAdapterEvents {
-  CONNECTED = "connected",
-  DISCONNECTED = "disconnected",
-  ERROR = "error",
-  MESSAGE = "message"
+export type NexxusMessageQueueAdapterEvents = {
+  connect: [];
+  disconnect: [];
+  error: [Error];
+  message: [any];
 }
 
-export abstract class NexxusMessageQueueAdapter<T extends NexxusConfig> extends NexxusBaseService<T> {
+export abstract class NexxusMessageQueueAdapter<T extends NexxusConfig, Ev extends NexxusMessageQueueAdapterEvents>
+  extends NexxusBaseService<T, Ev extends NexxusMessageQueueAdapterEvents ? Ev : NexxusMessageQueueAdapterEvents> {
+
   protected static loggerLabel: Readonly<string> = "NxxMessageQueue";
-  constructor(config: T) {
-    super(config);
-  }
 
   abstract connect(): Promise<void>;
   abstract reConnect(): Promise<void>;

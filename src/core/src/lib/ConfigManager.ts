@@ -120,7 +120,8 @@ export class NexxusConfigManager {
     this.cliArgsSpecs.forEach(spec => {
       spec.specs.forEach((arg) => {
         if (collectedNames.has(arg.name)) {
-          throw new InvalidConfigException(`Duplicate CLI argument name: "${arg.name}". Defined first by source: "${collectedNames.get(arg.name)}" and now by source: "${spec.source}"`);
+          throw new InvalidConfigException(`Duplicate CLI argument name: "${arg.name}".
+            Defined first by source: "${collectedNames.get(arg.name)}" and now by source: "${spec.source}"`);
         }
 
         collectedNames.set(arg.name, spec.source);
@@ -178,8 +179,8 @@ export class NexxusConfigManager {
 
   private formatAjvErrors(errors: ConfigErrorObject) : string {
     return errors.map(err => {
-      return `\n${err.instancePath}:\n\t${err.message}\n`;
-    }).join("\n");
+      return `\n${err.instancePath || '#root'}:\n\t${err.message}\n`;
+    }).join('\n');
   }
 
   private async validate() : Promise<void> {

@@ -4,7 +4,7 @@ import { ConfigCliArgs,
   NexxusGlobalServices as NxxSvcs,
   FatalErrorException
 } from "@nexxus/core";
-import { NexxusMessageQueueAdapter } from "./MessageQueueAdapter";
+import { NexxusMessageQueueAdapter, NexxusMessageQueueAdapterEvents } from "./MessageQueueAdapter";
 
 import * as amqplib from "amqplib";
 
@@ -21,7 +21,9 @@ type RabbitMQConfig = {
 
 export type QueueName = "writer";
 
-export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig> {
+interface NexxusRabbitMqEvents extends NexxusMessageQueueAdapterEvents {}
+
+export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, NexxusRabbitMqEvents> {
   protected static loggerLabel: Readonly<string> = "NxxRabbitMq";
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/rabbitmq.schema.json");
   protected static envVars: ConfigEnvVars = {
@@ -53,8 +55,8 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig> {
   private connection: amqplib.ChannelModel | null = null;
   private channel: amqplib.Channel | null = null;
 
-  constructor(config: RabbitMQConfig) {
-    super(config);
+  constructor() {
+    super(NxxSvcs.configManager.getConfig('message_queue') as RabbitMQConfig);
   }
 
   async connect(): Promise<void> {

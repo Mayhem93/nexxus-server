@@ -1,17 +1,16 @@
 import { NexxusBaseService, NexxusConfig } from '@nexxus/core';
 import { NexxusBaseModel } from "../models/Model";
 
-export enum NexxusDatabaseAdapterEvents {
-  CONNECTED = "connected",
-  DISCONNECTED = "disconnected",
-  ERROR = "error"
+export type NexxusDatabaseAdapterEvents = {
+  connect: [];
+  disconnect: [];
+  error: [Error];
 }
 
-export abstract class NexxusDatabaseAdapter<T extends NexxusConfig> extends NexxusBaseService<T> {
+export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends NexxusDatabaseAdapterEvents>
+  extends NexxusBaseService<T, Ev extends NexxusDatabaseAdapterEvents? Ev : NexxusDatabaseAdapterEvents> {
+
   protected static loggerLabel : Readonly<string> = "NxxDatabase";
-  constructor(config: T) {
-    super(config);
-  }
 
   abstract connect(): Promise<void>;
   abstract reConnect(): Promise<void>;

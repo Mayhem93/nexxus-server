@@ -1,6 +1,7 @@
 import { ConfigEnvVars, ConfigCliArgs } from './ConfigManager';
 import { NexxusBaseService } from './BaseService';
 import { NexxusConfig } from './ConfigProvider';
+import { NexxusGlobalServices as NxxSvcs } from './GlobalServices';
 
 import * as Winston from 'winston';
 
@@ -84,8 +85,8 @@ export class WinstonNexxusLogger extends BaseNexxusLogger<WinstonNexxusLoggerCon
     specs: []
   }
 
-  constructor(config: WinstonNexxusLoggerConfig) {
-    super(config);
+  constructor() {
+    super(NxxSvcs.configManager.getConfig('logger') as WinstonNexxusLoggerConfig);
 
     let format : Winston.Logform.Format;
 

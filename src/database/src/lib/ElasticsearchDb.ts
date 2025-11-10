@@ -1,6 +1,6 @@
 import { NexxusBaseModel } from "../models/Model";
 import { NexxusApplication } from "../models/Application";
-import { NexxusDatabaseAdapter } from "./DatabaseAdapter";
+import { NexxusDatabaseAdapter, NexxusDatabaseAdapterEvents } from "./DatabaseAdapter";
 import {
   NexxusGlobalServices as NxxSvcs,
   NexxusConfig,
@@ -21,6 +21,10 @@ type ElasticsearchConfig = {
   password: string;
 } & NexxusConfig;
 
+export type ElasticSearchEvents = NexxusDatabaseAdapterEvents & {
+  something: [string];
+}
+
 type ESBulkItemHeader = {
   index: {
     _id: string;
@@ -32,7 +36,7 @@ type ESBulkRequest = {
   body: Array<ESBulkItemHeader | NexxusBaseModel>;
 }
 
-export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchConfig> {
+export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchConfig, ElasticSearchEvents> {
   private client: ElasticSearch.Client;
   private collectedIndices: Set<string> = new Set();
 
@@ -63,13 +67,13 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     specs: []
   };
 
-  constructor(config: ElasticsearchConfig) {
-    super(config);
+  constructor() {
+    super(NxxSvcs.configManager.getConfig('database') as ElasticsearchConfig);
 
     this.client = new ElasticSearch.Client({
-      node: `http://${config.host}:${config.port}`,
+      node: `http://${this.config.host}:${this.config.port}`,
       auth: {
-        username: this.config.username,
+        username: this.config.user,
         password: this.config.password
       }
     });
@@ -160,3 +164,6 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     // Implementation for deleting items from Elasticsearch
   }
 }
+
+const testdb = new NexxusElasticsearchDb();
+
