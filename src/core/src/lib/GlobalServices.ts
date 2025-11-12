@@ -23,5 +23,11 @@ export class NexxusGlobalServices {
     if (params.configManager !== undefined) {
       this.configManager = params.configManager;
     }
+    if (params.database !== undefined) {
+      this.database = params.database;
+    }
+    if (params.messageQueue !== undefined) {
+      this.messageQueue = params.messageQueue;
+    }
   }
 }

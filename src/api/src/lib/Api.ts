@@ -5,12 +5,12 @@ import {
   NexxusConfig,
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
+import { NexxusApiBaseRoute } from './BaseRoute';
 
 import Express from 'express';
 
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { NexxusApiBaseRoute } from './BaseRoute';
 
 type RouteConstructor = new (r: Express.Router) => NexxusApiBaseRoute;
 
@@ -54,7 +54,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
       const RouteModule = await import(path.join(routesPath, file));
       const RouteClass: RouteConstructor = RouteModule.default;
 
-      new RouteClass(this.app.router);
+      new RouteClass(this.app);
 
       NxxSvcs.logger.debug(`Registered route class ${RouteClass.name}`, NexxusApi.loggerLabel);
     }

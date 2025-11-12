@@ -1,16 +1,14 @@
-import { NexxusApiBaseRoute } from "../BaseRoute";
-
-import { Router, Request, Response } from "express";
+import { Request, Response, Router } from 'express';
+import { NexxusApiBaseRoute } from '../BaseRoute';
 
 export default class RootRoute extends NexxusApiBaseRoute {
-  constructor(r: Router) {
-    super(r);
-    this.registerRoutes();
+  constructor(appRouter: Router) {
+    super('/', appRouter);
   }
 
   protected registerRoutes(): void {
-    this.router.get("/", (req: Request, res: Response) => {
-      res.status(200).send({ message: "Welcome to the Nexxus API!" });
+    this.router.get('/', (req: Request, res: Response) => {
+      res.status(200).send({ message: 'Welcome to the Nexxus API!' });
     });
   }
 }

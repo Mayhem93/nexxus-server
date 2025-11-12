@@ -164,6 +164,3 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     // Implementation for deleting items from Elasticsearch
   }
 }
-
-const testdb = new NexxusElasticsearchDb();
-
