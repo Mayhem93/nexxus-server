@@ -24,5 +24,8 @@
     "@nexxus/core": "file:../core",
     "@nexxus/database": "file:../database",
     "@nexxus/message_queue": "file:../message_queue"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

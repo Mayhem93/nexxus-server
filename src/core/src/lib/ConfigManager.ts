@@ -58,11 +58,11 @@ export class NexxusConfigManager {
   private configProviders : Array<INexxusConfigProvider> = [];
   private customProviders : Array<INexxusConfigProvider> = [];
 
-  constructor() {
+  constructor(confFile? : string) {
     const schemaPath = path.join(__dirname, "../../src/schemas/root.schema.json");
 
     this.jsonSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
-    this.configProviders.push(new NexxusFileConfigProvider(path.join(process.cwd(), NexxusConfigManager.CONF_FILE_NAME)));
+    this.configProviders.push(new NexxusFileConfigProvider(path.join(process.cwd(), confFile ?? NexxusConfigManager.CONF_FILE_NAME)));
     this.configProviders.push(new NexxusEnvVarsConfigProvider());
     this.configProviders.push(new NexxusCliArgConfigProvider());
   }

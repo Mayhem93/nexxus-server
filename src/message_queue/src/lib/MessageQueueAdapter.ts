@@ -11,6 +11,10 @@ export type NexxusMessageQueueAdapterEvents = {
   message: [any];
 }
 
+export type NexxusBasePayload = {
+  nxx_payload: Record<string, any>;
+}
+
 export abstract class NexxusMessageQueueAdapter<T extends NexxusConfig, Ev extends NexxusMessageQueueAdapterEvents>
   extends NexxusBaseService<T, Ev extends NexxusMessageQueueAdapterEvents ? Ev : NexxusMessageQueueAdapterEvents> {
 
@@ -31,6 +35,6 @@ export abstract class NexxusMessageQueueAdapter<T extends NexxusConfig, Ev exten
 
   abstract consumeMessages(
     queueName: string,
-    onMessage: (message: any) => Promise<void>
-  ): Promise<void>;
+    onMessage: (message: NexxusBasePayload) => Promise<void>
+  ) : Promise<void>;
 }

@@ -4,7 +4,10 @@ import {
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
 import { NexxusDatabaseAdapter, NexxusDatabaseAdapterEvents } from '@nexxus/database';
-import { NexxusMessageQueueAdapter, NexxusMessageQueueAdapterEvents } from '@nexxus/message_queue';
+import { NexxusMessageQueueAdapter,
+  NexxusMessageQueueAdapterEvents,
+  NexxusBasePayload
+} from '@nexxus/message_queue';
 
 export type NexxusBaseWorkerEvents = Record<string, any[]>;
 
@@ -22,4 +25,10 @@ export abstract class NexxusBaseWorker<T extends NexxusConfig, Ev extends Nexxus
     this.database = NxxSvcs.database as NexxusDatabaseAdapter<NexxusConfig, NexxusDatabaseAdapterEvents>;
     this.messageQueue = NxxSvcs.messageQueue as NexxusMessageQueueAdapter<NexxusConfig, NexxusMessageQueueAdapterEvents>;
   }
+
+  public async init(queueName: string) : Promise<void> {
+    await this.messageQueue.consumeMessages(queueName, this.processMessage.bind(this));
+  }
+
+  protected abstract processMessage(payload: NexxusBasePayload) : Promise<void>;
 }

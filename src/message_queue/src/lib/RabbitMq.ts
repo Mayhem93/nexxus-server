@@ -4,7 +4,10 @@ import { ConfigCliArgs,
   NexxusGlobalServices as NxxSvcs,
   FatalErrorException
 } from "@nexxus/core";
-import { NexxusMessageQueueAdapter, NexxusMessageQueueAdapterEvents } from "./MessageQueueAdapter";
+import { NexxusMessageQueueAdapter,
+  NexxusMessageQueueAdapterEvents,
+  NexxusBasePayload }
+from "./MessageQueueAdapter";
 
 import * as amqplib from "amqplib";
 
@@ -19,7 +22,32 @@ type RabbitMQConfig = {
   worker_name: string;
 } & NexxusConfig;
 
-export type QueueName = "writer";
+export type NexxusRabbitMqMsgPayload = NexxusBasePayload & {
+  fields: {
+    consumerTag: string;
+    deliveryTag: number;
+    redelivered: boolean;
+    exchange: string;
+    routingKey: string;
+  },
+  properties: {
+    contentType: string;
+    contentEncoding: string;
+    headers: Record<string, any>;
+    deliveryMode: number;
+    priority: number;
+    correlationId: string;
+    replyTo: string;
+    expiration: string;
+    messageId: string;
+    timestamp: number;
+    type: string;
+    userId: string;
+    appId: string;
+    clusterId: string;
+  },
+  content?: Buffer;
+}
 
 interface NexxusRabbitMqEvents extends NexxusMessageQueueAdapterEvents {}
 
@@ -115,11 +143,13 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
     this.channel?.sendToQueue(queueName, messageBuffer, { persistent: true, contentType: 'application/json' });
   }
 
-  async consumeMessages(queueName: string, onMessage: (message: any) => Promise<void> ): Promise<void> {
+  async consumeMessages(queueName: string, onMessage: (message: NexxusRabbitMqMsgPayload) => Promise<void> ) : Promise<void> {
     await this.channel?.consume(queueName, async msg => {
       if (msg !== null) {
         const messageContent = msg.content.toString();
-        const messageObject = JSON.parse(messageContent);
+        const messageObject = { nxx_payload: JSON.parse(messageContent), ...msg } as NexxusRabbitMqMsgPayload;
+
+        delete messageObject.content;
 
         NxxSvcs.logger.debug(`Received message from RabbitMQ queue ${queueName}: ${messageContent}`, NexxusRabbitMq.loggerLabel);
 
