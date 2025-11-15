@@ -4,7 +4,11 @@ import {
   NexxusConfig,
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
-import { NexxusBasePayload, NexxusQueueNames } from '@nexxus/message_queue';
+import {
+  NexxusQueueName,
+  NexxusQueueMessage,
+  NexxusQueuePayload
+} from '@nexxus/message_queue';
 import { NexxusBaseWorker, NexxusBaseWorkerEvents } from "./BaseWorker";
 
 import * as path from "node:path";
@@ -17,14 +21,8 @@ type NexxusWriterWorkerEvents = NexxusBaseWorkerEvents & {
   message: [string];
 };
 
-type NexxusWriterPayload = NexxusBasePayload & {
-  nxx_payload: {
-    test: string;
-  };
-};
-
 export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfig, NexxusWriterWorkerEvents> {
-  private queueName : Readonly<NexxusQueueNames> = "writer";
+  private queueName : NexxusQueueName = "writer";
 
   protected static loggerLabel: Readonly<string> = "NxxWriterWorker";
   protected static cliArgs: ConfigCliArgs = {
@@ -45,7 +43,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
     await super.init(this.queueName);
   }
 
-  protected async processMessage(msg: NexxusWriterPayload): Promise<void> {
-    NxxSvcs.logger.debug(`Processing message: ${JSON.stringify(msg.nxx_payload)}`, NexxusWriterWorker.loggerLabel);
+  protected async processMessage(msg: NexxusQueueMessage<NexxusQueuePayload<"writer">>): Promise<void> {
+    NxxSvcs.logger.debug(`Processing message: ${JSON.stringify(msg.payload)}`, NexxusWriterWorker.loggerLabel);
   }
 }

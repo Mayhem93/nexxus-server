@@ -11,22 +11,29 @@ export type NexxusMessageQueueAdapterEvents = {
   message: [any];
 }
 
-export type NexxusBasePayload = {
-  nxx_payload: Record<string, any>;
-}
+export type NexxusBasePayload =  Record<string, any>;
 
 export type NexxusWriterPayload = NexxusBasePayload & {
-  nxx_payload: {
-    event: string;
-    data: Record<string, any>;
-  };
+  event: string;
+  data: Record<string, any>;
 }
 
-export type NexxusQueueNames = 'writer';
+export type NexxusQueueName = keyof NexxusKnownQueues | (string & {});
 
-export interface QueueToPayloadMapping {
+export type NexxusKnownQueues = {
   writer: NexxusWriterPayload;
 }
+
+export type NexxusQueuePayload<Q extends NexxusQueueName> =
+  Q extends keyof NexxusKnownQueues ? NexxusKnownQueues[Q] : NexxusBasePayload;
+
+export type NexxusQueueMessage<
+  TPayload extends NexxusBasePayload,
+  TMetadata = unknown
+> = {
+  payload: TPayload;
+  metadata: TMetadata;
+};
 
 export abstract class NexxusMessageQueueAdapter<T extends NexxusConfig, Ev extends NexxusMessageQueueAdapterEvents>
   extends NexxusBaseService<T, Ev extends NexxusMessageQueueAdapterEvents ? Ev : NexxusMessageQueueAdapterEvents> {
@@ -41,13 +48,14 @@ export abstract class NexxusMessageQueueAdapter<T extends NexxusConfig, Ev exten
   abstract reConnect(): Promise<void>;
   abstract disconnect(): Promise<void>;
 
-  abstract publishMessage(
-    queueName: NexxusQueueNames,
-    message: NexxusBasePayload
+  abstract publishMessage<Q extends NexxusQueueName>(
+    queueName: Q,
+    message: NexxusQueuePayload<Q>,
+    metadata?: unknown
   ): Promise<void>;
 
-  abstract consumeMessages(
-    queueName: NexxusQueueNames,
-    onMessage: (message: NexxusBasePayload) => Promise<void>
+  abstract consumeMessages<Q extends NexxusQueueName>(
+    queueName: Q,
+    onMessage: (message: NexxusQueueMessage<NexxusQueuePayload<Q>, unknown>) => Promise<void>
   ) : Promise<void>;
 }

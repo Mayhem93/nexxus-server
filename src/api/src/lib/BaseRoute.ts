@@ -2,6 +2,7 @@ import { NexxusGlobalServices as NxxSvcs,
   NexxusConfig
 } from '@nexxus/core';
 import { NexxusMessageQueueAdapter, NexxusMessageQueueAdapterEvents } from '@nexxus/message_queue';
+
 import { Router } from 'express';
 
 export abstract class NexxusApiBaseRoute {

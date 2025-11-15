@@ -20,7 +20,7 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
   }
 
   private createApp(req: NexxusApiRequest, res: NexxusApiResponse): void {
-    this.messageQueue.publishMessage('writer', { nxx_payload: req.body });
+    this.messageQueue.publishMessage('writer', { data: { appName: 'NewApp' }, event: 'app_created' });
 
     res.status(201).send({ message: 'Application created successfully!' });
   }

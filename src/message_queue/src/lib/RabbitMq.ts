@@ -6,8 +6,9 @@ import { ConfigCliArgs,
 } from "@nexxus/core";
 import { NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,
-  NexxusBasePayload,
-  NexxusQueueNames
+  NexxusQueueMessage,
+  NexxusQueueName,
+  NexxusQueuePayload
 } from "./MessageQueueAdapter";
 
 import * as amqplib from "amqplib";
@@ -23,32 +24,10 @@ type RabbitMQConfig = {
   worker_name: string;
 } & NexxusConfig;
 
-export type NexxusRabbitMqMsgPayload = NexxusBasePayload & {
-  fields: {
-    consumerTag: string;
-    deliveryTag: number;
-    redelivered: boolean;
-    exchange: string;
-    routingKey: string;
-  },
-  properties: {
-    contentType: string;
-    contentEncoding: string;
-    headers: Record<string, any>;
-    deliveryMode: number;
-    priority: number;
-    correlationId: string;
-    replyTo: string;
-    expiration: string;
-    messageId: string;
-    timestamp: number;
-    type: string;
-    userId: string;
-    appId: string;
-    clusterId: string;
-  },
-  content?: Buffer;
-}
+export type RabbitMqMetadata = {
+  fields: amqplib.MessageFields;
+  properties: amqplib.MessageProperties;
+};
 
 interface NexxusRabbitMqEvents extends NexxusMessageQueueAdapterEvents {}
 
@@ -128,7 +107,11 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
     }
   }
 
-  async publishMessage(queueName: NexxusQueueNames, message: NexxusBasePayload): Promise<void> {
+  async publishMessage<Q extends NexxusQueueName>(
+    queueName: Q,
+    message: NexxusQueuePayload<Q>,
+    metadata?: amqplib.Options.Publish
+  ): Promise<void> {
     // Implementation for publishing a message to a RabbitMQ queue
     const messageBuffer = Buffer.from(JSON.stringify(message));
 
@@ -143,20 +126,34 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
 
     NxxSvcs.logger.debug(`Publishing message to RabbitMQ queue ${queueName}: ${messageBuffer.toString()}`, NexxusRabbitMq.loggerLabel);
 
-    this.channel?.sendToQueue(queueName, messageBuffer, { persistent: true, contentType: 'application/json' });
+    const options : amqplib.Options.Publish = {
+      persistent: true,
+      contentType: 'application/json',
+      ...metadata || {}
+    };
+
+    this.channel?.sendToQueue(queueName, messageBuffer, options);
   }
 
-  async consumeMessages(queueName: NexxusQueueNames, onMessage: (message: NexxusBasePayload) => Promise<void> ) : Promise<void> {
+  async consumeMessages<Q extends NexxusQueueName>(
+    queueName: Q,
+    onMessage: (message: NexxusQueueMessage<NexxusQueuePayload<Q>, unknown>) => Promise<void>
+  ) : Promise<void> {
     await this.channel?.consume(queueName, async msg => {
       if (msg !== null) {
-        const messageContent = msg.content.toString();
-        const messageObject = { nxx_payload: JSON.parse(messageContent), ...msg } as NexxusRabbitMqMsgPayload;
+        const payload = JSON.parse(msg.content.toString()) as NexxusQueuePayload<Q>;
+        const metadata : RabbitMqMetadata = {
+          fields: msg.fields,
+          properties: msg.properties
+        };
+        const queueMessage : NexxusQueueMessage<NexxusQueuePayload<Q>, RabbitMqMetadata> = {
+          payload,
+          metadata
+        };
 
-        delete messageObject.content;
+        NxxSvcs.logger.debug(`Received message from RabbitMQ queue ${queueName}: ${queueMessage.payload}`, NexxusRabbitMq.loggerLabel);
 
-        NxxSvcs.logger.debug(`Received message from RabbitMQ queue ${queueName}: ${messageContent}`, NexxusRabbitMq.loggerLabel);
-
-        await onMessage(messageObject);
+        await onMessage(queueMessage);
 
         this.channel?.ack(msg);
       }

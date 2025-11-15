@@ -7,7 +7,7 @@ import { NexxusDatabaseAdapter, NexxusDatabaseAdapterEvents } from '@nexxus/data
 import { NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,
   NexxusBasePayload,
-  NexxusQueueNames
+  NexxusQueueName
 } from '@nexxus/message_queue';
 
 export type NexxusBaseWorkerEvents = Record<string, any[]>;
@@ -27,7 +27,7 @@ export abstract class NexxusBaseWorker<T extends NexxusConfig, Ev extends Nexxus
     this.messageQueue = NxxSvcs.messageQueue as NexxusMessageQueueAdapter<NexxusConfig, NexxusMessageQueueAdapterEvents>;
   }
 
-  public async init(queueName: NexxusQueueNames) : Promise<void> {
+  public async init(queueName: NexxusQueueName) : Promise<void> {
     await this.messageQueue.consumeMessages(queueName, this.processMessage.bind(this));
   }
 

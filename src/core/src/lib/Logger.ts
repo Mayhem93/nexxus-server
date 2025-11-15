@@ -22,7 +22,7 @@ export enum NexxusLoggerLevels {
 
 type WinstonNexxusLoggerConfig = {
   level: NexxusLoggerLevels;
-  logType: "json" | "plain";
+  logType: "json" | "text";
   timestamps: boolean;
   colors: boolean;
 } & NexxusConfig;
