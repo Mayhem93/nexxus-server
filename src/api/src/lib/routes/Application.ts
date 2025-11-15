@@ -15,17 +15,17 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
     this.router.put('/:appId', this.updateApp.bind(this));
   }
 
-  private getApp(req: NexxusApiRequest, res: NexxusApiResponse): void {
+  private async getApp(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
     res.status(200).send({ message: 'Welcome to the Application Route!' });
   }
 
-  private createApp(req: NexxusApiRequest, res: NexxusApiResponse): void {
-    this.messageQueue.publishMessage('writer', { data: { appName: 'NewApp' }, event: 'app_created' });
+  private async createApp(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
+    await this.messageQueue.publishMessage('writer', { data: { appName: 'NewApp' }, event: 'app_created' });
 
     res.status(201).send({ message: 'Application created successfully!' });
   }
 
-  private updateApp(req: NexxusApiRequest, res: NexxusApiResponse): void {
+  private async updateApp(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
     res.status(201).send({ message: 'Application updated successfully!' });
   }
 }

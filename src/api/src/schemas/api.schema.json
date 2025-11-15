@@ -7,6 +7,18 @@
     },
     "port": {
       "type": "number"
+    },
+    "ssl": {
+      "type": "object",
+      "properties": {
+        "sslKeyPath": {
+          "type": "string"
+        },
+        "sslCertPath": {
+          "typoe": "string"
+        }
+      },
+      "required": [ "sslKeyPath", "sslCertPath" ]
     }
   },
   "required": [

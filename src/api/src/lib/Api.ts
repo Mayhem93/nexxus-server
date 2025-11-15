@@ -7,12 +7,16 @@ import {
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
 import { NexxusApiBaseRoute } from './BaseRoute';
+import { NotFoundMiddleware } from './middlewares';
 
 import Express from 'express';
+import helmet from 'helmet';
 
-import * as path from "node:path";
-import * as fs from "node:fs/promises";
-import { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { IncomingHttpHeaders, Server as HttpServer } from 'node:http';
+import https from 'node:https';
 
 type RouteConstructor = new (r: Express.Router) => NexxusApiBaseRoute;
 
@@ -28,11 +32,16 @@ export interface NexxusApiResponse extends Express.Response {}
 
 type NexxusApiConfig = {
   port: number;
+  ssl?: {
+    sslKeyPath: string;
+    sslCertPath: string;
+  };
 } & NexxusConfig;
 
 export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   private static loggerLabel: Readonly<string> = "NxxApi";
   private app: Express.Express;
+  private httpsServer?: https.Server;
   protected static cliArgs: ConfigCliArgs = {
     source: this.name,
     specs: []
@@ -48,11 +57,19 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
 
     this.app = Express();
     this.app.disable("x-powered-by");
+
+    if (this.config.ssl !== undefined) {
+      this.httpsServer = https.createServer({
+        key: readFileSync(this.config.ssl.sslKeyPath),
+        cert: readFileSync(this.config.ssl.sslCertPath)
+      }, this.app);
+    }
   }
 
   public async init(): Promise<void> {
     NxxSvcs.logger.info("Initializing API service...", NexxusApi.loggerLabel);
 
+    this.app.use(helmet());
     this.app.use(Express.json());
     this.app.use(Express.urlencoded({ extended: true }));
 
@@ -75,7 +92,17 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
       NxxSvcs.logger.debug(`Registered route class ${RouteClass.name}`, NexxusApi.loggerLabel);
     }
 
-    const server = this.app.listen(this.config.port);
+    this.app.use(NotFoundMiddleware);
+
+    let server : HttpServer | https.Server;
+
+    if (this.config.ssl !== undefined && this.httpsServer) {
+      server = this.httpsServer;
+
+      this.httpsServer.listen(this.config.port);
+    } else {
+      server = this.app.listen(this.config.port);
+    }
 
     server.on("listening", () => {
       NxxSvcs.logger.info(`API service is listening on port ${this.config.port}`, NexxusApi.loggerLabel);
