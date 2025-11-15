@@ -6,8 +6,9 @@ import { ConfigCliArgs,
 } from "@nexxus/core";
 import { NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,
-  NexxusBasePayload }
-from "./MessageQueueAdapter";
+  NexxusBasePayload,
+  NexxusQueueNames
+} from "./MessageQueueAdapter";
 
 import * as amqplib from "amqplib";
 
@@ -127,23 +128,25 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
     }
   }
 
-  async publishMessage(queueName: string, message: any): Promise<void> {
+  async publishMessage(queueName: NexxusQueueNames, message: NexxusBasePayload): Promise<void> {
     // Implementation for publishing a message to a RabbitMQ queue
     const messageBuffer = Buffer.from(JSON.stringify(message));
 
     // TODO: remove queue assertions when implementing a rabbitmq bootstrap process
-    const res = await this.channel?.assertQueue(queueName, { durable: true });
+    /* const res = await this.channel?.assertQueue(queueName, { durable: true, arguments: { 'x-queue-type': 'quorum' } });
 
     if (res === undefined) {
       throw new FatalErrorException(`Failed to assert RabbitMQ queue ${queueName}`);
     }
 
-    NxxSvcs.logger.debug(`Asserted RabbitMQ queue ${res.queue}`, NexxusRabbitMq.loggerLabel);
+    NxxSvcs.logger.debug(`Asserted RabbitMQ queue ${res.queue}`, NexxusRabbitMq.loggerLabel); */
+
+    NxxSvcs.logger.debug(`Publishing message to RabbitMQ queue ${queueName}: ${messageBuffer.toString()}`, NexxusRabbitMq.loggerLabel);
 
     this.channel?.sendToQueue(queueName, messageBuffer, { persistent: true, contentType: 'application/json' });
   }
 
-  async consumeMessages(queueName: string, onMessage: (message: NexxusRabbitMqMsgPayload) => Promise<void> ) : Promise<void> {
+  async consumeMessages(queueName: NexxusQueueNames, onMessage: (message: NexxusBasePayload) => Promise<void> ) : Promise<void> {
     await this.channel?.consume(queueName, async msg => {
       if (msg !== null) {
         const messageContent = msg.content.toString();

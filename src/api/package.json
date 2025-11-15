@@ -21,6 +21,8 @@
   "license": "ISC",
   "dependencies": {
     "@nexxus/core": "file:../core",
+    "@nexxus/database": "file:../database",
+    "@nexxus/message_queue": "file:../message_queue",
     "express": "^5.1.0",
     "tslib": "2.8.1"
   },

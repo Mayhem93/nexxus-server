@@ -1,5 +1,8 @@
-import { Request, Response, Router } from 'express';
+import { NexxusGlobalServices as NxxSvcs } from '@nexxus/core';
 import { NexxusApiBaseRoute } from '../BaseRoute';
+import { NexxusApiRequest, NexxusApiResponse } from '../Api';
+
+import { Router } from 'express';
 
 export default class ApplicationRoute extends NexxusApiBaseRoute {
   constructor(appRouter: Router) {
@@ -7,10 +10,22 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
   }
 
   protected registerRoutes(): void {
-    this.router.get('/',  this.rootEndpoint.bind(this));
+    this.router.post('/', this.createApp.bind(this));
+    this.router.get('/:appId',  this.getApp.bind(this));
+    this.router.put('/:appId', this.updateApp.bind(this));
   }
 
-  private rootEndpoint(req: Request, res: Response): void {
+  private getApp(req: NexxusApiRequest, res: NexxusApiResponse): void {
     res.status(200).send({ message: 'Welcome to the Application Route!' });
+  }
+
+  private createApp(req: NexxusApiRequest, res: NexxusApiResponse): void {
+    this.messageQueue.publishMessage('writer', { nxx_payload: req.body });
+
+    res.status(201).send({ message: 'Application created successfully!' });
+  }
+
+  private updateApp(req: NexxusApiRequest, res: NexxusApiResponse): void {
+    res.status(201).send({ message: 'Application updated successfully!' });
   }
 }

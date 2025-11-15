@@ -1,6 +1,7 @@
 import {
   ConfigCliArgs,
   ConfigEnvVars,
+  FatalErrorException,
   NexxusBaseService,
   NexxusConfig,
   NexxusGlobalServices as NxxSvcs
@@ -11,8 +12,19 @@ import Express from 'express';
 
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
+import { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http';
 
 type RouteConstructor = new (r: Express.Router) => NexxusApiBaseRoute;
+
+type NexxusApiHeaders = {
+  "nexxus-app-id"?: string;
+};
+
+export interface NexxusApiRequest extends Express.Request {
+  headers: NexxusApiHeaders & IncomingHttpHeaders;
+}
+
+export interface NexxusApiResponse extends Express.Response {}
 
 type NexxusApiConfig = {
   port: number;
@@ -53,6 +65,10 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     for (const file of routeFiles) {
       const RouteModule = await import(path.join(routesPath, file));
       const RouteClass: RouteConstructor = RouteModule.default;
+
+      if (!RouteClass) {
+        throw new FatalErrorException(`Failed to load route class from file "${file}". Does it have a default export ?`);
+      }
 
       new RouteClass(this.app);
 

@@ -4,7 +4,7 @@ import {
   NexxusConfig,
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
-import { NexxusBasePayload } from '@nexxus/message_queue';
+import { NexxusBasePayload, NexxusQueueNames } from '@nexxus/message_queue';
 import { NexxusBaseWorker, NexxusBaseWorkerEvents } from "./BaseWorker";
 
 import * as path from "node:path";
@@ -24,7 +24,7 @@ type NexxusWriterPayload = NexxusBasePayload & {
 };
 
 export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfig, NexxusWriterWorkerEvents> {
-  private queueName : Readonly<string> = "writer";
+  private queueName : Readonly<NexxusQueueNames> = "writer";
 
   protected static loggerLabel: Readonly<string> = "NxxWriterWorker";
   protected static cliArgs: ConfigCliArgs = {
