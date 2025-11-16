@@ -1,11 +1,10 @@
 {
-  "name": "@nexxus/api",
+  "name": "@nexxus/redis",
   "version": "0.0.1",
   "description": "",
   "main": "dist-cjs/index.js",
   "module": "dist-esm/index.js",
   "types": "dist-types/index.d.ts",
-  "sideEffects": false,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "concurrently \"npm run build:cjs\" \"npm run build:esm\" \"npm run build:types\"",
@@ -13,26 +12,22 @@
     "build:types": "tsc -p tsconfig.types.json",
     "build:cjs": "tsc -p tsconfig.cjs.json"
   },
+  "sideEffects": false,
   "files": [
     "dist-*/**"
   ],
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@nexxus/core": "file:../core",
-    "@nexxus/database": "file:../database",
-    "@nexxus/message_queue": "file:../message_queue",
-    "@nexxus/redis": "file:../redis",
-    "express": "^5.1.0",
-    "helmet": "^8.1.0",
-    "tslib": "2.8.1"
-  },
   "devDependencies": {
-    "@tsconfig/node24": "^24.0.1",
-    "@types/express": "^5.0.5",
-    "@types/node": "^24.9.2",
+    "@tsconfig/node24": "^24.0.2",
+    "@types/node": "^24.10.1",
     "concurrently": "^9.2.1",
     "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "@nexxus/core": "file:../core",
+    "redis": "^5.9.0",
+    "tslib": "2.8.1"
   }
 }

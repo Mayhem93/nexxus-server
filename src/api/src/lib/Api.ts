@@ -31,6 +31,7 @@ export interface NexxusApiRequest extends Express.Request {
 export interface NexxusApiResponse extends Express.Response {}
 
 type NexxusApiConfig = {
+  name: string;
   port: number;
   ssl?: {
     sslKeyPath: string;

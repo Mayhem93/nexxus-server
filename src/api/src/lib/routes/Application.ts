@@ -28,4 +28,8 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
   private async updateApp(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
     res.status(201).send({ message: 'Application updated successfully!' });
   }
+
+  private async registerDevice(appId: string, deviceInfo: any): Promise<void> {
+    // Implementation for registering a device
+  }
 }

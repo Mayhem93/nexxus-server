@@ -8,7 +8,7 @@ export type NexxusBaseModelType = NexxusGenericModel & {
   id: string;
   createdAt: number;
   updatedAt: number;
-  type?: string;
+  type: string;
 };
 
 export abstract class NexxusBaseModel {

@@ -8,6 +8,7 @@ type GlobalServicesInitParams = {
   configManager?: NexxusConfigManager;
   database?: unknown;
   messageQueue?: unknown;
+  redis?: unknown;
 };
 
 export class NexxusGlobalServices {
@@ -15,6 +16,7 @@ export class NexxusGlobalServices {
   static configManager: Readonly<NexxusConfigManager>;
   static database: unknown;
   static messageQueue: unknown;
+  static redis: unknown;
 
   static init(params: GlobalServicesInitParams): void {
     if (params.logger !== undefined) {
@@ -28,6 +30,9 @@ export class NexxusGlobalServices {
     }
     if (params.messageQueue !== undefined) {
       this.messageQueue = params.messageQueue;
+    }
+    if (params.redis !== undefined) {
+      this.redis = params.redis;
     }
   }
 }

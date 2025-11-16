@@ -19,7 +19,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "devDependencies": {
     "@tsconfig/node24": "^24.0.1",
     "@types/amqplib": "^0.10.8",
