@@ -1,3 +1,9 @@
+import {
+  NexxusGlobalServices as NxxSvcs,
+  NEXXUS_PREFIX_LC
+} from '@nexxus/core';
+import { type NexxusRedis } from '../Redis';
+
 export enum RedisKeyType {
   Hash = 'hash',
   String = 'string',
@@ -7,12 +13,22 @@ export enum RedisKeyType {
   Json = 'json'
 }
 
-export abstract class NexxusRedisBaseModel {
-  protected redisKeyType : RedisKeyType;
+type RedisKeyValueType = Record<string, any> | string | unknown;
 
-  constructor(keyType: RedisKeyType) {
+export abstract class NexxusRedisBaseModel<V> {
+  protected redisKeyType : RedisKeyType;
+  protected val: V;
+  protected static redis: NexxusRedis = NxxSvcs.redis as NexxusRedis;
+
+  constructor(keyType: RedisKeyType, val: V) {
     this.redisKeyType = keyType;
+    this.val = val;
   }
 
-  public abstract getKey(): string;
+  public getValue(): V {
+    return this.val;
+  }
+
+  public abstract save(): Promise<void>;
+  protected abstract getKey(): string;
 }

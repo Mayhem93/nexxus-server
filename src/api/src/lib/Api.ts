@@ -7,6 +7,11 @@ import {
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
 import { NexxusApiBaseRoute } from './BaseRoute';
+import {
+  RootRoute,
+  ApplicationRoute,
+  DeviceRoute
+} from './routes';
 import { NotFoundMiddleware } from './middlewares';
 
 import Express from 'express';
@@ -74,7 +79,13 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     this.app.use(Express.json());
     this.app.use(Express.urlencoded({ extended: true }));
 
-    const routesPath = path.join(__dirname, "./routes");
+    new RootRoute(this.app);
+
+    const appRoute = new ApplicationRoute(this.app);
+
+    new DeviceRoute(appRoute.getRouter());
+
+    /* const routesPath = path.join(__dirname, "./routes");
     const routeDirents = await fs.readdir(routesPath, { withFileTypes: true });
     const routeFiles = routeDirents
       .filter(dirent => dirent.isFile() && dirent.name.endsWith(".js"))
@@ -91,7 +102,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
       new RouteClass(this.app);
 
       NxxSvcs.logger.debug(`Registered route class ${RouteClass.name}`, NexxusApi.loggerLabel);
-    }
+    } */
 
     this.app.use(NotFoundMiddleware);
 

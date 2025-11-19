@@ -22,6 +22,10 @@ export abstract class NexxusApiBaseRoute {
     this.mountOn(parentRouter);
   }
 
+  public getRouter(): Router {
+    return this.router;
+  }
+
   protected abstract registerRoutes(): void;
 
   private mountOn(parentRouter: Router): void {

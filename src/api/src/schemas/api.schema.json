@@ -15,7 +15,7 @@
           "type": "string"
         },
         "sslCertPath": {
-          "typoe": "string"
+          "type": "string"
         }
       },
       "required": [ "sslKeyPath", "sslCertPath" ]
