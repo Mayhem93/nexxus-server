@@ -14,5 +14,11 @@
     "password": {
       "type": "string"
     }
-  }
+  },
+  "required": [
+    "host",
+    "port",
+    "user",
+    "password"
+  ]
 }

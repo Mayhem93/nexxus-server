@@ -1,6 +1,9 @@
-import { NexxusBaseModel } from "../models/Model";
-import { NexxusApplication } from "../models/Application";
-import { NexxusDatabaseAdapter, NexxusDatabaseAdapterEvents } from "./DatabaseAdapter";
+import { NexxusBaseModel, type NexxusBaseModelType } from "../models/Model";
+import { NexxusApplication, NexxusApplicationModelType } from "../models/Application";
+import { NexxusDatabaseAdapter,
+  NexxusDatabaseAdapterEvents,
+  NexxusDbSearchOptions
+} from "./DatabaseAdapter";
 import {
   NexxusGlobalServices as NxxSvcs,
   NexxusConfig,
@@ -33,7 +36,7 @@ type ESBulkItemHeader = {
 };
 
 type ESBulkRequest = {
-  body: Array<ESBulkItemHeader | NexxusBaseModel>;
+  body: Array<ESBulkItemHeader | NexxusBaseModelType>;
 }
 
 export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchConfig, ElasticSearchEvents> {
@@ -127,11 +130,14 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     }
   }
 
+  /* async createItems(collection: Array<NexxusBaseModel>): Promise<void>;
+  async createItems(collection: Array<any>): Promise<void>; */
+
   async createItems(collection: Array<NexxusBaseModel>): Promise<void> {
     const bulkReq : ESBulkRequest = { body: [] };
 
     for (const item of collection) {
-      const itemData = item.getData();
+      const itemData : NexxusBaseModelType = item.getData();
       let index: string;
 
       if (item instanceof NexxusApplication) {
@@ -144,11 +150,42 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
 
       bulkReq.body.push(
         { index: { _index: index, _id: itemData.id } },
-        item
+        itemData
       );
     }
 
     await this.client.bulk(bulkReq);
+  }
+
+  async searchItems(options: NexxusDbSearchOptions): Promise<Array<NexxusBaseModel>> {
+    let index = NEXXUS_PREFIX_LC;
+
+    if (options.model === 'application') {
+      index += '-applications';
+    } else {
+      index += '-default';
+    }
+
+    const searchResults = await this.client.search({
+      index: index,
+      from: options.offset || 0,
+      size: options.limit || 100,
+      query: {
+        match_all: {}
+      }
+    });
+
+    const models : Array<NexxusBaseModel> = searchResults.hits.hits.map(res => {
+      //TODO: update this when implementing the application model class properly
+      switch (options.model) {
+        case 'application':
+          return new NexxusApplication(res._source as NexxusApplicationModelType);
+      }
+
+      return new NexxusApplication(res._source as NexxusApplicationModelType);
+    });
+
+    return models;
   }
 
   async getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>> {

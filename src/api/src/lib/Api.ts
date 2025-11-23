@@ -1,32 +1,36 @@
 import {
   ConfigCliArgs,
   ConfigEnvVars,
-  FatalErrorException,
   NexxusBaseService,
   NexxusConfig,
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
-import { NexxusApiBaseRoute } from './BaseRoute';
+import { NexxusApplication,
+  NexxusDatabaseAdapter,
+  NexxusDatabaseAdapterEvents,
+  NexxusApplicationModelType
+} from '@nexxus/database';
 import {
   RootRoute,
   ApplicationRoute,
   DeviceRoute
 } from './routes';
-import { NotFoundMiddleware } from './middlewares';
+import {
+  NotFoundMiddleware,
+  ErrorMiddleware
+} from './middlewares';
 
 import Express from 'express';
 import helmet from 'helmet';
 
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { IncomingHttpHeaders, Server as HttpServer } from 'node:http';
 import https from 'node:https';
 
-type RouteConstructor = new (r: Express.Router) => NexxusApiBaseRoute;
-
 type NexxusApiHeaders = {
-  "nexxus-app-id"?: string;
+  'nxx-app-id'?: Readonly<string>;
+  'nxx-device-id'?: Readonly<string>;
 };
 
 export interface NexxusApiRequest extends Express.Request {
@@ -45,9 +49,10 @@ type NexxusApiConfig = {
 } & NexxusConfig;
 
 export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
-  private static loggerLabel: Readonly<string> = "NxxApi";
   private app: Express.Express;
   private httpsServer?: https.Server;
+  private readonly loadedApps: Map<string, NexxusApplication> = new Map();
+  private static loggerLabel: Readonly<string> = 'NxxApi';
   protected static cliArgs: ConfigCliArgs = {
     source: this.name,
     specs: []
@@ -56,7 +61,9 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     source: this.name,
     specs: []
   };
-  protected static schemaPath: string = path.join(__dirname, "../../src/schemas/api.schema.json");
+  protected static schemaPath: string = path.join(__dirname, '../../src/schemas/api.schema.json');
+  public static instance?: NexxusApi;
+  public database = NxxSvcs.database as NexxusDatabaseAdapter<NexxusConfig, NexxusDatabaseAdapterEvents>;
 
   constructor() {
     super(NxxSvcs.configManager.getConfig('app') as NexxusApiConfig);
@@ -73,11 +80,25 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   }
 
   public async init(): Promise<void> {
-    NxxSvcs.logger.info("Initializing API service...", NexxusApi.loggerLabel);
+    NxxSvcs.logger.info('Initializing API service...', NexxusApi.loggerLabel);
 
-    this.app.use(helmet());
+    this.app.use(helmet({
+      xDownloadOptions: false,
+      xXssProtection: false,
+      xDnsPrefetchControl: false,
+      xFrameOptions: false,
+      originAgentCluster: false,
+      referrerPolicy: { policy: 'same-origin' },
+      strictTransportSecurity: this.config.ssl !== undefined ? {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+      } : false
+    }));
     this.app.use(Express.json());
     this.app.use(Express.urlencoded({ extended: true }));
+
+    await this.loadApps();
 
     new RootRoute(this.app);
 
@@ -85,26 +106,8 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
 
     new DeviceRoute(appRoute.getRouter());
 
-    /* const routesPath = path.join(__dirname, "./routes");
-    const routeDirents = await fs.readdir(routesPath, { withFileTypes: true });
-    const routeFiles = routeDirents
-      .filter(dirent => dirent.isFile() && dirent.name.endsWith(".js"))
-      .map(dirent => dirent.name);
-
-    for (const file of routeFiles) {
-      const RouteModule = await import(path.join(routesPath, file));
-      const RouteClass: RouteConstructor = RouteModule.default;
-
-      if (!RouteClass) {
-        throw new FatalErrorException(`Failed to load route class from file "${file}". Does it have a default export ?`);
-      }
-
-      new RouteClass(this.app);
-
-      NxxSvcs.logger.debug(`Registered route class ${RouteClass.name}`, NexxusApi.loggerLabel);
-    } */
-
     this.app.use(NotFoundMiddleware);
+    this.app.use(ErrorMiddleware);
 
     let server : HttpServer | https.Server;
 
@@ -116,8 +119,23 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
       server = this.app.listen(this.config.port);
     }
 
-    server.on("listening", () => {
+    server.on('listening', () => {
       NxxSvcs.logger.info(`API service is listening on port ${this.config.port}`, NexxusApi.loggerLabel);
     });
+
+    NexxusApi.instance = this;
+  }
+
+  private async loadApps(): Promise<void> {
+    const results = await this.database.searchItems({ model: NexxusApplication.modelType });
+
+    for (let app of results) {
+
+      this.loadedApps.set(app.getData().id, app as NexxusApplication);
+    }
+  }
+
+  public getStoredApp(appId: string): NexxusApplication | undefined {
+    return this.loadedApps.get(appId);
   }
 }

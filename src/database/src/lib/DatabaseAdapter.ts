@@ -10,6 +10,12 @@ export type NexxusDatabaseAdapterEvents = {
   error: [Error];
 }
 
+export interface NexxusDbSearchOptions {
+  model: 'application' | string;
+  limit?: number;
+  offset?: number;
+};
+
 export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends NexxusDatabaseAdapterEvents>
   extends NexxusBaseService<T, Ev extends NexxusDatabaseAdapterEvents ? Ev : NexxusDatabaseAdapterEvents> {
 
@@ -25,6 +31,7 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
 
   abstract createItems(collection: Array<NexxusBaseModel>): Promise<void>;
   abstract getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>>;
+  abstract searchItems(options: NexxusDbSearchOptions): Promise<Array<NexxusBaseModel>>;
   abstract updateItems(collection: Array<NexxusBaseModel>, query: any, updates: any): Promise<void>;
   abstract deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void>;
 }

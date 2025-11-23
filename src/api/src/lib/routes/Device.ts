@@ -24,7 +24,7 @@ export default class DeviceRoute extends NexxusApiBaseRoute {
   }
 
   private async registerDevice(req: RegisterDeviceRequest, res: NexxusApiResponse): Promise<void> {
-    const redisDevice = new NexxusDevice({
+    const nxxDevice = new NexxusDevice({
       id: randomUUID(),
       appId: req.params.appId,
       name: req.body.name,
@@ -34,7 +34,7 @@ export default class DeviceRoute extends NexxusApiBaseRoute {
       subscriptions: []
     });
 
-    await redisDevice.save();
+    await nxxDevice.save();
 
     res.status(200).send({ message: 'Device registered successfully!' });
   }

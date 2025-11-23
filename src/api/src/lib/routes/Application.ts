@@ -1,8 +1,13 @@
-import { NexxusGlobalServices as NxxSvcs } from '@nexxus/core';
 import { NexxusApiBaseRoute } from '../BaseRoute';
 import { type NexxusApiRequest, type NexxusApiResponse } from '../Api';
+import { InvalidParametersException } from '../Exceptions';
+import { type NexxusApplicationModelType, NexxusApplication } from '@nexxus/database';
 
 import { type Router } from 'express';
+
+interface CreateApplicationRequest extends NexxusApiRequest {
+  body: Pick<NexxusApplicationModelType, "name" | "description" | "schema">;
+}
 
 export default class ApplicationRoute extends NexxusApiBaseRoute {
   constructor(appRouter: Router) {
@@ -19,13 +24,19 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
     res.status(200).send({ message: 'Welcome to the Application Route!' });
   }
 
-  private async createApp(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
-    await this.messageQueue.publishMessage('writer', { data: { appName: 'NewApp' }, event: 'app_created' });
+  private async createApp(req: CreateApplicationRequest, res: NexxusApiResponse): Promise<void> {
+    if (!req.body.schema || typeof req.body.schema !== 'object') {
+      throw new InvalidParametersException('Invalid or missing schema in request body');
+    }
 
-    res.status(201).send({ message: 'Application created successfully!' });
+    const newApp = new NexxusApplication(req.body as NexxusApplicationModelType);
+
+    await this.messageQueue.publishMessage('writer', { data: newApp.getData(), event: 'app_created' });
+
+    res.status(202).send({ message: 'Application created successfully!' });
   }
 
   private async updateApp(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
-    res.status(201).send({ message: 'Application updated successfully!' });
+    res.status(202).send({ message: 'Application updated successfully!' });
   }
 }

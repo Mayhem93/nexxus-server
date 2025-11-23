@@ -4,6 +4,7 @@ import {
   NexxusConfig,
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
+import { NexxusApplication, NexxusApplicationModelType } from '@nexxus/database';
 import {
   NexxusQueueName,
   NexxusQueueMessage,
@@ -45,5 +46,20 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
   protected async processMessage(msg: NexxusQueueMessage<NexxusQueuePayload<"writer">>): Promise<void> {
     NxxSvcs.logger.debug(`Processing message: ${JSON.stringify(msg.payload)}`, NexxusWriterWorker.loggerLabel);
+    const payload = msg.payload;
+
+    switch (payload.event) {
+      case "app_created":
+        NxxSvcs.logger.info(`Received app_created event for app ID: ${payload.data.id}`, NexxusWriterWorker.loggerLabel);
+
+        const newApp = new NexxusApplication(payload.data as NexxusApplicationModelType);
+
+        await this.database.createItems([newApp]);
+
+        break;
+      default:
+        NxxSvcs.logger.warn(`Unknown event type: ${payload.event}`, NexxusWriterWorker.loggerLabel);
+    }
+    // await this.database.createItems()
   }
 }
