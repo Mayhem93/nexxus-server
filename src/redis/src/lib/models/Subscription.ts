@@ -153,27 +153,6 @@ export class NexxusRedisSubscription {
     return crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 16);
   }
 
-/*   private static async getFilterFromId(filterId: string, appId: string, model?: string, userId?: string): Promise<NexxusChannelFilter | null> {
-    const redis = (NxxSvcs.redis as NexxusRedis).getClient();
-    let key = `${NEXXUS_PREFIX_LC}:subscription-filters:${appId}`;
-
-    if (model) {
-      key += `:model:${model}`;
-    }
-
-    if (userId) {
-      key += `:user:${userId}`;
-    }
-
-    const res = await redis.hGet(key, filterId);
-
-    if (!res) {
-      return null;
-    }
-
-    return JSON.parse(res) as NexxusChannelFilter;
-  } */
-
   private buildPartitionKey(partition: string): string {
     let key = `${NEXXUS_PREFIX_LC}:subscription:${this.channel.appId}`;
 
