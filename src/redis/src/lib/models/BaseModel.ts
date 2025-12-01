@@ -18,7 +18,6 @@ type RedisKeyValueType = Record<string, any> | string | unknown;
 export abstract class NexxusRedisBaseModel<V> {
   protected redisKeyType : RedisKeyType;
   protected val: V;
-  protected static redis: NexxusRedis = NxxSvcs.redis as NexxusRedis;
 
   constructor(keyType: RedisKeyType, val: V) {
     this.redisKeyType = keyType;
@@ -30,5 +29,5 @@ export abstract class NexxusRedisBaseModel<V> {
   }
 
   public abstract save(): Promise<void>;
-  protected abstract getKey(): string;
+  public abstract getKey(): string;
 }

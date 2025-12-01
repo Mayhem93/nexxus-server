@@ -54,15 +54,32 @@ export class NexxusRedis extends NexxusBaseService<NexxusRedisConfig> {
             password: this.config.password
           }
         ],
-        useReplicas: true
-      });
+        useReplicas: true,
+        RESP: 3,
+        clientSideCache: {
+          ttl: 5*60*1000, // 5 minutes
+          maxEntries: 1000,
+          evictPolicy: 'FIFO'
+        }
+      }) as unknown as Redis.RedisClusterType;
     } else {
       this.client = await Redis.createClient({
         url: `redis://${this.config.host}:${this.config.port}`,
         username: this.config.user,
-        password: this.config.password
-      });
+        password: this.config.password,
+        RESP: 3,
+        clientSideCache: {
+          ttl: 5 * 60 * 1000, // 5 minutes
+          maxEntries: 1000,
+          evictPolicy: 'FIFO'
+        },
+        socket: {
+          keepAlive: true
+        }
+      }) as unknown as Redis.RedisClientType;
     }
+
+    await this.client.connect();
 
     NxxSvcs.logger.info('Connected to redis', NexxusRedis.loggerLabel);
   }
