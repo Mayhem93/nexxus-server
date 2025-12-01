@@ -1,2 +1,3 @@
-export { default as NotFoundMiddleware } from "./404";
+export { default as NotFoundMiddleware } from "./NotFound";
 export { default as ErrorMiddleware } from "./Error";
+export { default as RequiredHeadersMiddleware } from "./RequiredHeaders";

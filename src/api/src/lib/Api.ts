@@ -7,8 +7,7 @@ import {
 } from '@nexxus/core';
 import { NexxusApplication,
   NexxusDatabaseAdapter,
-  NexxusDatabaseAdapterEvents,
-  NexxusApplicationModelType
+  NexxusDatabaseAdapterEvents
 } from '@nexxus/database';
 import {
   RootRoute,
@@ -28,7 +27,7 @@ import { readFileSync } from 'node:fs';
 import { IncomingHttpHeaders, Server as HttpServer } from 'node:http';
 import https from 'node:https';
 
-type NexxusApiHeaders = {
+export type NexxusApiHeaders = {
   'nxx-app-id'?: Readonly<string>;
   'nxx-device-id'?: Readonly<string>;
 };
@@ -51,7 +50,7 @@ type NexxusApiConfig = {
 export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   private app: Express.Express;
   private httpsServer?: https.Server;
-  private readonly loadedApps: Map<string, NexxusApplication> = new Map();
+  private static readonly loadedApps: Map<string, NexxusApplication> = new Map();
   private static loggerLabel: Readonly<string> = 'NxxApi';
   protected static cliArgs: ConfigCliArgs = {
     source: this.name,
@@ -63,7 +62,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   };
   protected static schemaPath: string = path.join(__dirname, '../../src/schemas/api.schema.json');
   public static instance?: NexxusApi;
-  public database = NxxSvcs.database as NexxusDatabaseAdapter<NexxusConfig, NexxusDatabaseAdapterEvents>;
+  public readonly database = NxxSvcs.database as NexxusDatabaseAdapter<NexxusConfig, NexxusDatabaseAdapterEvents>;
 
   constructor() {
     super(NxxSvcs.configManager.getConfig('app') as NexxusApiConfig);
@@ -130,12 +129,13 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     const results = await this.database.searchItems({ model: NexxusApplication.modelType });
 
     for (let app of results) {
-
-      this.loadedApps.set(app.getData().id, app as NexxusApplication);
+      NexxusApi.loadedApps.set(app.getData().id, app as NexxusApplication);
     }
+
+    NxxSvcs.logger.info(`Loaded ${NexxusApi.loadedApps.size} applications into API service`, NexxusApi.loggerLabel);
   }
 
-  public getStoredApp(appId: string): NexxusApplication | undefined {
-    return this.loadedApps.get(appId);
+  public static getStoredApp(appId: string): NexxusApplication | undefined {
+    return NexxusApi.loadedApps.get(appId);
   }
 }

@@ -1,14 +1,15 @@
 import { NexxusException } from "@nexxus/core";
 
-enum NexxusApiExceptions {
+enum ApiExceptions {
   INVALID_PARAMETERS = "InvalidParametersException",
+  NOT_FOUND = "NotFoundException",
   SERVER_ERROR = "ServerErrorException"
 };
 
 export abstract class NexxusApiException extends NexxusException {
   public abstract readonly statusCode: number;
 
-  constructor(name: NexxusApiExceptions, message: string) {
+  constructor(name: ApiExceptions, message: string) {
     super(name, message);
   }
 }
@@ -17,7 +18,7 @@ export class InvalidParametersException extends NexxusApiException {
   public readonly statusCode = 400;
 
   constructor(message: string) {
-    super(NexxusApiExceptions.INVALID_PARAMETERS, message);
+    super(ApiExceptions.INVALID_PARAMETERS, message);
   }
 }
 
@@ -25,6 +26,13 @@ export class ServerErrorException extends NexxusApiException {
   public readonly statusCode = 500;
 
   constructor(message: string) {
-    super(NexxusApiExceptions.SERVER_ERROR, message);
+    super(ApiExceptions.SERVER_ERROR, message);
+  }
+}
+export class NotFoundException extends NexxusApiException {
+  public readonly statusCode = 404;
+
+  constructor(message: string) {
+    super(ApiExceptions.NOT_FOUND, message);
   }
 }
