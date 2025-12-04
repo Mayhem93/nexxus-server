@@ -4,9 +4,10 @@ import { NexxusBaseService,
 } from '@nexxus/core';
 import {
   NexxusBaseModel,
-  ModelTypeName,
-  type AnyNexxusModel
+  ModelTypeName
 } from "../models/BaseModel";
+import { NexxusApplication } from '../models/Application';
+import { NexxusAppModel } from '../models/AppModel';
 
 export type NexxusDatabaseAdapterEvents = {
   connect: [];
@@ -36,7 +37,8 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
 
   abstract createItems(collection: Array<NexxusBaseModel>): Promise<void>;
   abstract getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>>;
-  abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<Array<AnyNexxusModel>>;
+  abstract searchItems(options: NexxusDbSearchOptions<'application'>): Promise<NexxusApplication[]>;
+  abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<NexxusAppModel[]>;
   abstract updateItems(collection: Array<NexxusBaseModel>, query: any, updates: any): Promise<void>;
   abstract deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void>;
 }
