@@ -2,7 +2,11 @@ import { NexxusBaseService,
   NexxusConfig,
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
-import { NexxusBaseModel } from "../models/Model";
+import {
+  INexxusBaseModel,
+  ModelTypeName,
+  type AnyNexxusModel
+} from "../models/BaseModel";
 
 export type NexxusDatabaseAdapterEvents = {
   connect: [];
@@ -10,11 +14,12 @@ export type NexxusDatabaseAdapterEvents = {
   error: [Error];
 }
 
-export interface NexxusDbSearchOptions {
-  model: 'application' | string;
+export interface NexxusDbSearchOptions<T extends ModelTypeName | string = string> {
+  model: T;
+  query: any;
   limit?: number;
   offset?: number;
-};
+}
 
 export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends NexxusDatabaseAdapterEvents>
   extends NexxusBaseService<T, Ev extends NexxusDatabaseAdapterEvents ? Ev : NexxusDatabaseAdapterEvents> {
@@ -29,9 +34,9 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
   abstract reConnect(): Promise<void>;
   abstract disconnect(): Promise<void>;
 
-  abstract createItems(collection: Array<NexxusBaseModel>): Promise<void>;
-  abstract getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>>;
-  abstract searchItems(options: NexxusDbSearchOptions): Promise<Array<NexxusBaseModel>>;
-  abstract updateItems(collection: Array<NexxusBaseModel>, query: any, updates: any): Promise<void>;
-  abstract deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void>;
+  abstract createItems(collection: Array<INexxusBaseModel>): Promise<void>;
+  abstract getItems(collection: Array<INexxusBaseModel>, query: any): Promise<Array<INexxusBaseModel>>;
+  abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<Array<AnyNexxusModel>>;
+  abstract updateItems(collection: Array<INexxusBaseModel>, query: any, updates: any): Promise<void>;
+  abstract deleteItems(collection: Array<INexxusBaseModel>, query: any): Promise<void>;
 }

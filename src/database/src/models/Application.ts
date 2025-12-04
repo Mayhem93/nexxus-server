@@ -1,4 +1,4 @@
-import { NexxusBaseModelType, NexxusBaseModel } from "./Model";
+import { NexxusBaseModel, INexxusBaseModel } from "./BaseModel";
 
 type FieldType = 'string' | 'number' | 'boolean' | 'array' | 'object' | 'date';
 
@@ -32,8 +32,7 @@ export interface NexxusApplicationSchema {
   [modelName: string]: ModelDef;
 }
 
-export type NexxusApplicationModelType = NexxusBaseModelType & {
-  type: "application";
+export type NexxusApplicationModelType = INexxusBaseModel & {
   name: string;
   description?: string;
   schema: NexxusApplicationSchema;
@@ -42,10 +41,10 @@ export type NexxusApplicationModelType = NexxusBaseModelType & {
 // export type ApplicationConstructorParams = Pick<NexxusApplicationModelType, "name" | "description" | "schema">;
 
 export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelType> {
-  public static readonly modelType: string = "application";
+  public static readonly modelType: string = "application" ;
 
   constructor(data: NexxusApplicationModelType) {
-    super(data);
+    super({ ...data, type: NexxusApplication.modelType });
 
     if (Object.keys(data.schema).length === 0) {
       throw new Error("Application schema cannot be empty");
