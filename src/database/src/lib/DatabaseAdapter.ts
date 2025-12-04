@@ -3,7 +3,7 @@ import { NexxusBaseService,
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
 import {
-  INexxusBaseModel,
+  NexxusBaseModel,
   ModelTypeName,
   type AnyNexxusModel
 } from "../models/BaseModel";
@@ -34,9 +34,9 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
   abstract reConnect(): Promise<void>;
   abstract disconnect(): Promise<void>;
 
-  abstract createItems(collection: Array<INexxusBaseModel>): Promise<void>;
-  abstract getItems(collection: Array<INexxusBaseModel>, query: any): Promise<Array<INexxusBaseModel>>;
+  abstract createItems(collection: Array<NexxusBaseModel>): Promise<void>;
+  abstract getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>>;
   abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<Array<AnyNexxusModel>>;
-  abstract updateItems(collection: Array<INexxusBaseModel>, query: any, updates: any): Promise<void>;
-  abstract deleteItems(collection: Array<INexxusBaseModel>, query: any): Promise<void>;
+  abstract updateItems(collection: Array<NexxusBaseModel>, query: any, updates: any): Promise<void>;
+  abstract deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void>;
 }

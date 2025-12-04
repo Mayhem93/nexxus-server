@@ -136,10 +136,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     }
   }
 
-  /* async createItems(collection: Array<NexxusBaseModel>): Promise<void>;
-  async createItems(collection: Array<any>): Promise<void>; */
-
-  async createItems(collection: Array<INexxusBaseModel>): Promise<void> {
+  async createItems(collection: Array<NexxusBaseModel>): Promise<void> {
     const bulkReq : ESBulkRequest = { body: [] };
 
     for (const item of collection) {
@@ -197,16 +194,16 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     return models;
   }
 
-  async getItems(collection: Array<INexxusBaseModel>, query: any): Promise<Array<INexxusBaseModel>> {
+  async getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>> {
     // Implementation for retrieving items from Elasticsearch
     return [];
   }
 
-  async updateItems(collection: Array<INexxusBaseModel>, query: any, updates: any): Promise<void> {
+  async updateItems(collection: Array<NexxusBaseModel>, query: any, updates: any): Promise<void> {
     // Implementation for updating items in Elasticsearch
   }
 
-  async deleteItems(collection: Array<INexxusBaseModel>, query: any): Promise<void> {
+  async deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void> {
     // Implementation for deleting items from Elasticsearch
   }
 }
