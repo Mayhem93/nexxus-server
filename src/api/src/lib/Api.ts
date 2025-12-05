@@ -7,12 +7,14 @@ import {
 } from '@nexxus/core';
 import { NexxusApplication,
   NexxusDatabaseAdapter,
-  NexxusDatabaseAdapterEvents
+  NexxusDatabaseAdapterEvents,
+  MODEL_REGISTRY
 } from '@nexxus/database';
 import {
   RootRoute,
   ApplicationRoute,
-  DeviceRoute
+  DeviceRoute,
+  ModelRoute
 } from './routes';
 import {
   NotFoundMiddleware,
@@ -104,6 +106,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     const appRoute = new ApplicationRoute(this.app);
 
     new DeviceRoute(appRoute.getRouter());
+    new ModelRoute(this.app);
 
     this.app.use(NotFoundMiddleware);
     this.app.use(ErrorMiddleware);
@@ -126,10 +129,10 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   }
 
   private async loadApps(): Promise<void> {
-    const results = await this.database.searchItems({ model: NexxusApplication.modelType });
+    const results = await this.database.searchItems({ model: MODEL_REGISTRY.application, query: {} });
 
     for (let app of results) {
-      NexxusApi.loadedApps.set(app.getData().id, app as NexxusApplication);
+      NexxusApi.loadedApps.set(app.getData().id as string, app as NexxusApplication);
     }
 
     NxxSvcs.logger.info(`Loaded ${NexxusApi.loadedApps.size} applications into API service`, NexxusApi.loggerLabel);

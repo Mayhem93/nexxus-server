@@ -3,7 +3,9 @@ import { NexxusException } from "@nexxus/core";
 enum ApiExceptions {
   INVALID_PARAMETERS = "InvalidParametersException",
   NOT_FOUND = "NotFoundException",
-  SERVER_ERROR = "ServerErrorException"
+  SERVER_ERROR = "ServerErrorException",
+  APPLICATION_NOT_FOUND = "ApplicationNotFoundException",
+  MODEL_NOT_FOUND = "ModelNotFoundException"
 };
 
 export abstract class NexxusApiException extends NexxusException {
@@ -34,5 +36,21 @@ export class NotFoundException extends NexxusApiException {
 
   constructor(message: string) {
     super(ApiExceptions.NOT_FOUND, message);
+  }
+}
+
+export class ApplicationNotFoundException extends NexxusApiException {
+  public readonly statusCode = 404;
+
+  constructor(message: string) {
+    super(ApiExceptions.APPLICATION_NOT_FOUND, message);
+  }
+}
+
+export class ModelNotFoundException extends NexxusApiException {
+  public readonly statusCode = 404;
+
+  constructor(message: string) {
+    super(ApiExceptions.MODEL_NOT_FOUND, message);
   }
 }

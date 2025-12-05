@@ -1,9 +1,9 @@
-import { NexxusApiRequest } from "../Api";
+import { NexxusApiRequest, NexxusApiHeaders } from "../Api";
 import { InvalidParametersException } from "../Exceptions";
 
 import { NextFunction, Response } from "express";
 
-export default (header: string) => (req: NexxusApiRequest, res: Response, next: NextFunction) => {
+export default (header: keyof NexxusApiHeaders) => (req: NexxusApiRequest, res: Response, next: NextFunction) => {
   if (!req.headers[header]) {
     throw new InvalidParametersException(`Missing required header: ${header}`);
   }
