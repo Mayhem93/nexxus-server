@@ -2,7 +2,7 @@ import { NexxusBaseModel, INexxusBaseModel } from "./BaseModel";
 
 export interface NexxusAppModelProps extends INexxusBaseModel {
   appId: string;
-  // All other fields are dynamic
+  userId?: string;
   [key: string]: any;
 }
 

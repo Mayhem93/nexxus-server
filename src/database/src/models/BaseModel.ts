@@ -9,9 +9,9 @@ interface NexxusGenericModel {
 export type AnyNexxusModel = NexxusApplication | NexxusAppModel; // Extend this union as more built-in models are added
 
 export interface INexxusBaseModel extends NexxusGenericModel {
-  id: string;
-  createdAt: number;
-  updatedAt: number;
+  id?: string;
+  createdAt?: number;
+  updatedAt?: number;
   type: string;
 };
 

@@ -1,4 +1,8 @@
-import { NexxusBaseModel, INexxusBaseModel, MODEL_REGISTRY } from "./BaseModel";
+import {
+  NexxusBaseModel,
+  INexxusBaseModel,
+  MODEL_REGISTRY
+} from "./BaseModel";
 
 type FieldType = 'string' | 'number' | 'boolean' | 'array' | 'object' | 'date';
 
@@ -38,8 +42,6 @@ export type NexxusApplicationModelType = INexxusBaseModel & {
   schema: NexxusApplicationSchema;
 };
 
-// export type ApplicationConstructorParams = Pick<NexxusApplicationModelType, "name" | "description" | "schema">;
-
 export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelType> {
   constructor(data: NexxusApplicationModelType) {
     super({ ...data, type: MODEL_REGISTRY.application });
@@ -49,6 +51,10 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
     }
 
     //TODO: actually use json schema validation for schema structure
+  }
+
+  public getSchema(): NexxusApplicationSchema {
+    return this.getData().schema;
   }
 
   async save(): Promise<void> {

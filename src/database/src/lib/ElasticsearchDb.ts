@@ -152,7 +152,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
       await this.createIndexIfNotExists(index);
 
       bulkReq.body.push(
-        { index: { _index: index, _id: itemData.id } },
+        { index: { _index: index, _id: itemData.id as string } },
         itemData
       );
     }
