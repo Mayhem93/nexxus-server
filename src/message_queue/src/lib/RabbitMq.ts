@@ -1,14 +1,16 @@
-import { ConfigCliArgs,
+import {
+  NexxusGlobalServices as NxxSvcs,
+  ConfigCliArgs,
   ConfigEnvVars,
   NexxusConfig,
-  NexxusGlobalServices as NxxSvcs,
+  NexxusQueueName,
+  NexxusQueuePayload,
   FatalErrorException
 } from "@nexxus/core";
-import { NexxusMessageQueueAdapter,
+import {
+  NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,
-  NexxusQueueMessage,
-  NexxusQueueName,
-  NexxusQueuePayload
+  NexxusQueueMessage
 } from "./MessageQueueAdapter";
 
 import * as amqplib from "amqplib";
@@ -59,6 +61,8 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
     source: this.name,
     specs: []
   };
+
+  protected reconnectDelayMs: number = 5000; //TODO: make this configurable
 
   private connection: amqplib.ChannelModel | null = null;
   private channel: amqplib.Channel | null = null;
@@ -137,7 +141,7 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
 
   async consumeMessages<Q extends NexxusQueueName>(
     queueName: Q,
-    onMessage: (message: NexxusQueueMessage<NexxusQueuePayload<Q>, unknown>) => Promise<void>
+    onMessage: (message: NexxusQueueMessage<NexxusQueuePayload<Q>>) => Promise<void>
   ) : Promise<void> {
     await this.channel?.consume(queueName, async msg => {
       if (msg !== null) {
@@ -146,7 +150,7 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
           fields: msg.fields,
           properties: msg.properties
         };
-        const queueMessage : NexxusQueueMessage<NexxusQueuePayload<Q>, RabbitMqMetadata> = {
+        const queueMessage : NexxusQueueMessage<NexxusQueuePayload<Q>> = {
           payload,
           metadata
         };

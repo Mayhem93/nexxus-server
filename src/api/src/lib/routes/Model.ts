@@ -43,7 +43,7 @@ export default class ModelRoute extends NexxusApiBaseRoute {
 
     const newModel = new NexxusAppModel(req.body);
 
-    await this.messageQueue.publishMessage('writer', { data: newModel.getData(), event: 'model_created' });
+    await this.messageQueue.publishMessage('writer', { event: 'model_created', data: newModel.getData() });
 
     res.status(202).send({ message: 'Model created successfully!' });
   }
