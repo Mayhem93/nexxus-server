@@ -10,7 +10,7 @@ import * as Redis from 'redis';
 
 import * as path from 'node:path';
 
-type NexxusRedisConfig = {
+export type NexxusRedisConfig = {
   host: string;
   port: number;
   user?: string;

@@ -1,4 +1,8 @@
 import { NexxusRedis } from '../Redis';
+import {
+  RedisCommandErrorException,
+  RedisKeyNotFoundException
+} from '../Exceptions'
 import { NexxusRedisBaseModel, RedisKeyType } from './BaseModel';
 import { NexxusRedisSubscription } from './Subscription';
 import { NEXXUS_PREFIX_LC, NexxusGlobalServices as NxxSvcs } from '@nexxus/core';
@@ -15,7 +19,8 @@ export interface NexxusDeviceProps {
   subscriptions: NexxusRedisSubscription[];
 }
 
-type NexxusDeviceConstructorProps = Omit<NexxusDeviceProps, 'subscriptions'> & {
+type NexxusDeviceConstructorProps = Omit<NexxusDeviceProps, 'lastSeen' |'subscriptions'> & {
+  lastSeen?: string;
   subscriptions: NexxusRedisSubscription[] | [];
 }
 
@@ -49,14 +54,13 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     const res = await (NxxSvcs.redis as NexxusRedis).getClient().json.get(`${NEXXUS_PREFIX_LC}:device:${id}`) as NexxusDeviceRedisProps | null;
 
     if (!res) {
-      throw new Error(`Device with id "${id}" not found`);
+      throw new RedisKeyNotFoundException(`Device with id "${id}" not found`);
     }
 
     const device = new NexxusDevice({
       ...res,
-      lastSeen: new Date(res.lastSeen),
       subscriptions: withSubscriptions ? await Promise.all(res.subscriptions.map(async (subKey) => {
-        const sub = await NexxusRedisSubscription.fromKey(subKey);
+        const sub = NexxusRedisSubscription.fromKey(subKey);
 
         sub.setAppId(res.appId);
 
@@ -87,7 +91,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     );
 
     if (res === null) {
-      throw new Error(`Failed to add subscription to device with id "${this.val.id}"`);
+      throw new RedisCommandErrorException(`Failed to add subscription to device with id "${this.val.id}"`);
     }
 
     this.val.subscriptions.push(subscription);

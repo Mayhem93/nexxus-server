@@ -52,7 +52,7 @@ export class NexxusRedisSubscription {
     return key;
   }
 
-  public static async fromKey(key: string): Promise<NexxusRedisSubscription> {
+  public static fromKey(key: string): NexxusRedisSubscription {
     const parts = key.split(':');
 
     const appId = parts[2];
