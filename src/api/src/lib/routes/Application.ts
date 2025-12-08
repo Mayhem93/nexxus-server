@@ -5,9 +5,13 @@ import {
   type NexxusApiResponse,
   NexxusApi
 } from '../Api';
-import { InvalidParametersException } from '../Exceptions';
+import { InvalidParametersException, NotFoundException, ModelNotFoundException } from '../Exceptions';
 import { type NexxusApplicationModelType, NexxusApplication } from '@nexxus/database';
-import { NexxusRedisSubscription } from '@nexxus/redis';
+import {
+  RedisKeyNotFoundException,
+  NexxusRedisSubscription,
+  NexxusDevice
+} from '@nexxus/redis';
 
 import { type Router } from 'express';
 
@@ -43,6 +47,9 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
   }
 
   private async subscribe(req: SubscribeRequest, res: NexxusApiResponse): Promise<void> {
+    const appId = req.headers['nxx-app-id'] as string;
+    const deviceId = req.headers['nxx-device-id'] as string;
+
     if (typeof req.body.model !== 'string' && req.body.model !== undefined) {
       throw new InvalidParametersException('Invalid model parameter');
     }
@@ -67,37 +74,45 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
       }
     }
 
-    if (typeof req.body.getOnly !== 'boolean') {
+    if (typeof req.body.getOnly !== 'boolean' && req.body.getOnly !== undefined) {
       throw new InvalidParametersException('Invalid getOnly parameter');
     }
 
     req.body.getOnly = req.body.getOnly || false;
 
-    const app = NexxusApi.getStoredApp(req.headers['nxx-app-id'] as string);
+    const app = NexxusApi.getStoredApp(appId);
 
-    if (!app) { //TODO: specific app not found exception
-      throw new InvalidParametersException(`Application "${req.headers['nxx-app-id'] as string}" not found`);
+    if (req.body.model && app!.getData().schema[req.body.model] === undefined) {
+      throw new ModelNotFoundException(`Model "${req.body.model}" not found in application "${appId}"`);
     }
 
-    if (req.body.model && app.getData().schema[req.body.model] === undefined) {
-      throw new InvalidParametersException(`Model "${req.body.model}" not found in application "${req.headers['nxx-app-id'] as string}"`);
+    if (req.body.getOnly === false) {
+      const sub = new NexxusRedisSubscription({
+        appId,
+        model: req.body.model,
+        userId: req.body.userId,
+        filter: req.body.filter
+      });
+
+      try {
+        const device = await NexxusDevice.get(deviceId, true);
+
+        await device.addSubscription(sub);
+      } catch (e) {
+        if (e instanceof RedisKeyNotFoundException) {
+          throw new NotFoundException(`Device with id "${deviceId}" not found`);
+        }
+
+        throw e;
+      }
     }
 
-    const sub = new NexxusRedisSubscription({
-      appId: req.headers['nxx-app-id'] as string,
-      model: req.body.model,
-      userId: req.body.userId,
-      filter: req.body.filter
-    });
-
-    await sub.addDevice(req.headers['nxx-device-id'] as string);
-
-    await this.database.searchItems({
+    const results = (await this.database.searchItems({
       model: req.body.model,
       query: {}
-    });
+    })).map(item => item.getData());
 
-    res.status(200).send({ message: 'Subscribe endpoint hit successfully!' });
+    res.status(200).send({ results });
   }
 
   private async getApp(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
