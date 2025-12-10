@@ -15,8 +15,7 @@ export type NexxusTransportManagerPayload =
 
 // Payload for websocket workers (dynamic instances)
 export type NexxusWebsocketPayload =
-  | { event: 'device_message'; deviceId: string; data: any; }
-  | { event: 'device_disconnect'; deviceId: string; };
+  | { event: 'device_message'; deviceId: string; data: any; };
 
 export type NexxusMqttPayload =
   | { event: 'mqtt_publish'; topic: string; payload: Buffer; }
@@ -30,8 +29,8 @@ export interface NexxusBuiltInQueuePayloadMap {
 
 // Map of dynamic queue patterns to their payloads
 export interface NexxusDynamicQueuePayloadMap {
-  'websockets': NexxusWebsocketPayload;
-  'mqtt': NexxusMqttPayload;
+  'websockets-transport': NexxusWebsocketPayload;
+  'mqtt-transport': NexxusMqttPayload;
 }
 
 // Built-in queue names (static)
@@ -65,8 +64,8 @@ type ExtractQueuePattern<Q extends string> =
 export type ExtractQueueType<Q extends string> =
   Q extends `${infer Type}_${number}`
   ? Type extends NexxusDynamicQueueType
-  ? Type
-  : never
+    ? Type
+    : never
   : never;
 
 // Get payload type for a queue name

@@ -23,9 +23,12 @@
   "dependencies": {
     "@nexxus/core": "file:../core",
     "@nexxus/database": "file:../database",
-    "@nexxus/message_queue": "file:../message_queue"
+    "@nexxus/message_queue": "file:../message_queue",
+    "@nexxus/redis": "file:../redis",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.1",
     "concurrently": "^9.2.1"
   }
 }

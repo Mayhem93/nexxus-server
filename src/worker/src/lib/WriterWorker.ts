@@ -38,7 +38,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
     source: this.name,
     specs: []
   };
-  protected static schemaPath: string = path.join(__dirname, "../../src/schemas/worker.schema.json");
+  protected static schemaPath: string = path.join(__dirname, "../../src/schemas/writer-worker.schema.json");
 
   constructor() {
     super();

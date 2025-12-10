@@ -1,0 +1,12 @@
+{
+  "$comment": "app",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "port"
+  ]
+}
