@@ -1,11 +1,4 @@
 import {
-  NexxusBaseModel,
-  type INexxusBaseModel,
-  type AnyNexxusModel
-} from "../models/BaseModel";
-import { NexxusApplication, NexxusApplicationModelType } from "../models/Application";
-import { NexxusAppModel } from "../models/AppModel";
-import {
   NexxusDatabaseAdapter,
   NexxusDatabaseAdapterEvents,
   NexxusDbSearchOptions
@@ -15,6 +8,12 @@ import {
   NexxusConfig,
   ConfigCliArgs,
   ConfigEnvVars,
+  NexxusBaseModel,
+  type INexxusBaseModel,
+  type AnyNexxusModel,
+  NexxusApplication,
+  NexxusApplicationModelType,
+  NexxusAppModel,
   ConnectionException,
   NEXXUS_PREFIX_LC
 } from "@nexxus/core";

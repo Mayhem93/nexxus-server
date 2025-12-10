@@ -1,6 +1,7 @@
-import { randomUUID } from "node:crypto"
 import { NexxusApplication } from "./Application";
 import { NexxusAppModel } from "./AppModel";
+
+import { randomUUID } from "node:crypto"
 
 interface NexxusGenericModel {
   [key: string]: any | NexxusGenericModel;
@@ -12,7 +13,7 @@ export interface INexxusBaseModel extends NexxusGenericModel {
   id?: string;
   createdAt?: number;
   updatedAt?: number;
-  type: string;
+  type: ModelTypeName;
 };
 
 export const MODEL_REGISTRY = {

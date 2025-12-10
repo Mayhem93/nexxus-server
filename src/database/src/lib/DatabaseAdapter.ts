@@ -4,10 +4,10 @@ import { NexxusBaseService,
 } from '@nexxus/core';
 import {
   NexxusBaseModel,
+  NexxusApplication,
+  NexxusAppModel,
   ModelTypeName
-} from "../models/BaseModel";
-import { NexxusApplication } from '../models/Application';
-import { NexxusAppModel } from '../models/AppModel';
+} from "@nexxus/core";
 
 export type NexxusDatabaseAdapterEvents = {
   connect: [];

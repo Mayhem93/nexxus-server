@@ -6,7 +6,7 @@ import {
   NexxusAppModel,
   type NexxusAppModelProps,
   type NexxusApplicationSchema
-} from '@nexxus/database';
+} from '@nexxus/core';
 
 import { type Router } from 'express';
 

@@ -3,12 +3,13 @@ import {
   ConfigEnvVars,
   NexxusBaseService,
   NexxusConfig,
+  NexxusApplication,
+  MODEL_REGISTRY,
   NexxusGlobalServices as NxxSvcs
 } from '@nexxus/core';
-import { NexxusApplication,
+import {
   NexxusDatabaseAdapter,
   NexxusDatabaseAdapterEvents,
-  MODEL_REGISTRY
 } from '@nexxus/database';
 import {
   RootRoute,

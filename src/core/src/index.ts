@@ -6,6 +6,9 @@ export * from "./lib/Logger";
 export * from "./lib/GlobalServices";
 
 export * from "./common/QueuePayloads";
+export * from "./models/BaseModel";
+export * from "./models/AppModel";
+export * from "./models/Application";
 
 export const NEXXUS_PREFIX_LC = "nxx";
 export const NEXXUS_PREFIX_UC = "NXX";
