@@ -3,7 +3,8 @@ import { NexxusException } from "@nexxus/core";
 enum NexxusRedisExceptions {
   REDIS_CONNECTION_ERROR = "RedisConnectionErrorException",
   REDIS_COMMAND_ERROR = "RedisCommandErrorException",
-  REDIS_KEY_NOT_FOUND = "RedisKeyNotFoundException"
+  REDIS_KEY_NOT_FOUND = "RedisKeyNotFoundException",
+  REDIS_DEVICE_INVALID_PARAMS = "RedisDeviceInvalidParamsException"
 };
 
 export class NexxusRedisException extends NexxusException {
@@ -27,5 +28,11 @@ export class RedisCommandErrorException extends NexxusRedisException {
 export class RedisKeyNotFoundException extends NexxusRedisException {
   constructor(message: string) {
     super(NexxusRedisExceptions.REDIS_KEY_NOT_FOUND, message);
+  }
+}
+
+export class RedisDeviceInvalidParamsException extends NexxusRedisException {
+  constructor(message: string) {
+    super(NexxusRedisExceptions.REDIS_DEVICE_INVALID_PARAMS, message);
   }
 }

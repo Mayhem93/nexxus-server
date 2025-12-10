@@ -1,7 +1,8 @@
 import { NexxusRedis } from '../Redis';
 import {
   RedisCommandErrorException,
-  RedisKeyNotFoundException
+  RedisKeyNotFoundException,
+  RedisDeviceInvalidParamsException
 } from '../Exceptions'
 import { NexxusRedisBaseModel, RedisKeyType } from './BaseModel';
 import { NexxusRedisSubscription } from './Subscription';
@@ -24,6 +25,8 @@ type NexxusDeviceConstructorProps = Omit<NexxusDeviceProps, 'lastSeen' |'subscri
   subscriptions: NexxusRedisSubscription[] | [];
 }
 
+type NexxusDeviceUpdateProps = Omit<Partial<NexxusDeviceProps>, 'id' | 'appId' | 'subscriptions'>;
+
 type NexxusDeviceRedisProps = Omit<NexxusDeviceProps, 'lastSeen' | 'subscriptions'> & {
   lastSeen: string;
   subscriptions: string[];
@@ -42,12 +45,16 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     });
 
     if (!props.appId) {
-      throw new Error('Device must have an appId');
+      throw new RedisDeviceInvalidParamsException('appId is required to create a Device instance');
     }
   }
 
   public getKey(): string {
-    return `${NEXXUS_PREFIX_LC}:device:${this.val.id}`;
+    return NexxusDevice.getKey(this.val.id);
+  }
+
+  public static getKey(id: string): string {
+    return `${NEXXUS_PREFIX_LC}:device:${id}`;
   }
 
   public static async get(id : string, withSubscriptions: boolean = false): Promise<NexxusDevice> {
@@ -69,6 +76,47 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     });
 
     return device;
+  }
+
+  public static async update(id: string, updates: NexxusDeviceUpdateProps): Promise<void> {
+    const redis = (NxxSvcs.redis as NexxusRedis).getClient();
+    const key = this.getKey(id);
+    const jsonUpdates : Array<{ key: string, path: string, value: any }> = [];
+
+    for (const [field, value] of Object.entries(updates)) {
+      const typedField = field as keyof NexxusDeviceUpdateProps;
+
+      switch (typedField) {
+        case 'lastSeen':
+          if (!(value instanceof Date)) {
+            throw new RedisDeviceInvalidParamsException(`Invalid value for lastSeen: expected Date, got ${typeof value}`);
+          }
+
+          jsonUpdates.push({ key, path: `$.${field}`, value: (value as Date).toISOString() });
+
+          break;
+        case 'name':
+        case 'type':
+        case 'status':
+          if (typeof value !== 'string') {
+            throw new RedisDeviceInvalidParamsException(`Invalid value for ${field}: expected string, got ${typeof value}`);
+          }
+
+          jsonUpdates.push({ key, path: `$.${field}`, value });
+
+          break;
+        default:
+          throw new RedisDeviceInvalidParamsException(`Unknown field "${field}"`);
+      }
+    }
+
+    const res = await redis.json.mSet(jsonUpdates);
+
+    if (!res) {
+      throw new RedisCommandErrorException(`Failed to update device with id "${id}"`);
+    }
+
+    NxxSvcs.logger.debug(`Updated device with id "${id}"`);
   }
 
   public async addSubscription(subscription: NexxusRedisSubscription): Promise<boolean> {
@@ -119,7 +167,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     ) as string[] | null;
 
     if (subs === null) {
-      throw new Error(`Device with id "${this.val.id}" not found`);
+      throw new RedisKeyNotFoundException(`Device with id "${this.val.id}" not found`);
     }
 
     const index = subs.indexOf(subscription.getKey());
@@ -147,7 +195,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     );
 
     if (res === null) {
-      throw new Error(`Failed to remove subscription from device with id "${this.val.id}"`);
+      throw new RedisCommandErrorException(`Failed to remove subscription from device with id "${this.val.id}"`);
     }
 
     await subscription.removeDevice(this.val.id);
@@ -172,7 +220,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     }
 
     if (!res) {
-      throw new Error(`Failed to save device with id "${this.val.id}"`);
+      throw new RedisCommandErrorException(`Failed to save device with id "${this.val.id}"`);
     }
 
     NxxSvcs.logger.debug(`Saved device with id "${this.val.id}"`);
