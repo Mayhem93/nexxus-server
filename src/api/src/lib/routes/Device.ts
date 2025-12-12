@@ -51,9 +51,8 @@ export default class DeviceRoute extends NexxusApiBaseRoute {
       id: randomUUID(),
       appId: req.headers['nxx-app-id'] as string,
       name: req.body.name,
-      type: req.body.type,
       status: 'offline',
-      lastSeen: new Date(0),
+      lastSeen: (new Date(0)).toDateString(),
       subscriptions: []
     });
 

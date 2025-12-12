@@ -22,7 +22,9 @@ export interface NexxusDeviceProps {
   subscriptions: NexxusRedisSubscription[];
 }
 
-type NexxusDeviceConstructorProps = Omit<NexxusDeviceProps, 'lastSeen' |'subscriptions'> & {
+type NexxusDeviceConstructorProps = Omit<NexxusDeviceProps, 'lastSeen' |'subscriptions' | 'connectedTo' | 'type'> & {
+  type?: "volatile" | "persistent" | "unknown";
+  connectedTo?: string | null;
   lastSeen?: string;
   subscriptions: NexxusRedisSubscription[] | [];
 }

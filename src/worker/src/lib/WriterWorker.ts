@@ -69,9 +69,6 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
       default:
         NxxSvcs.logger.warn(`Unknown event type: ${payload.event}`, NexxusWriterWorker.loggerLabel);
     }
-    // await this.database.createItems()
-
-    // await this.publish('mqtt')
   }
 
   private async loadApps(): Promise<void> {

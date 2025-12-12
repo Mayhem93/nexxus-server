@@ -5,8 +5,15 @@ import {
   type NexxusApiResponse,
   NexxusApi
 } from '../Api';
-import { InvalidParametersException, NotFoundException, ModelNotFoundException } from '../Exceptions';
-import { type NexxusApplicationModelType, NexxusApplication } from '@nexxus/database';
+import {
+  InvalidParametersException,
+  NotFoundException,
+  ModelNotFoundException
+} from '../Exceptions';
+import {
+  type NexxusApplicationModelType,
+  NexxusApplication
+} from '@nexxus/core';
 import {
   RedisKeyNotFoundException,
   NexxusRedisSubscription,
