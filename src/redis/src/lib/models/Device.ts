@@ -2,7 +2,8 @@ import { NexxusRedis } from '../Redis';
 import {
   RedisCommandErrorException,
   RedisKeyNotFoundException,
-  RedisDeviceInvalidParamsException
+  RedisDeviceInvalidParamsException,
+  RedisDeviceNotConnectedException
 } from '../Exceptions'
 import { NexxusRedisBaseModel, RedisKeyType } from './BaseModel';
 import { NexxusRedisSubscription } from './Subscription';
@@ -16,6 +17,7 @@ export interface NexxusDeviceProps {
   name: string;
   type: "volatile" | "persistent" | "unknown";
   status: 'online' | 'offline' | 'unknown';
+  connectedTo: string | null;
   lastSeen: Date;
   subscriptions: NexxusRedisSubscription[];
 }
@@ -40,6 +42,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
       name: props.name || 'Unnamed Device',
       type: props.type || 'unknown',
       status: props.status || 'unknown',
+      connectedTo: props.connectedTo || null,
       lastSeen: new Date(props.lastSeen || 0),
       subscriptions: props.subscriptions || []
     });
@@ -119,7 +122,29 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     NxxSvcs.logger.debug(`Updated device with id "${id}"`);
   }
 
+  public static async removeDeviceSubscriptions(deviceId: string): Promise<void> {
+    const device = await NexxusDevice.get(deviceId, true);
+    const promises : Promise<boolean>[] = [];
+
+    for (const subInstance of device.val.subscriptions) {
+      if (device.val.connectedTo) {
+        promises.push(subInstance.removeDevice(deviceId, device.val.connectedTo));
+      } else {
+        NxxSvcs.logger.warn(`Device with id "${deviceId}" is not connected to any transport, cannot remove subscriptions`);
+      }
+    }
+
+    const result = await Promise.all(promises);
+    const removedCount = result.filter(r => r).length;
+
+    NxxSvcs.logger.debug(`Removed ${removedCount} subscriptions from device with id "${deviceId}"`);
+  }
+
   public async addSubscription(subscription: NexxusRedisSubscription): Promise<boolean> {
+    if (!this.val.connectedTo) {
+      throw new RedisDeviceNotConnectedException(`Device with id "${this.val.id}" is not connected to any transport`);
+    }
+
     const redis = (NxxSvcs.redis as NexxusRedis).getClient();
 
     subscription.setAppId(this.val.appId);
@@ -143,7 +168,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     }
 
     this.val.subscriptions.push(subscription);
-    await subscription.addDevice(this.val.id);
+    await subscription.addDevice(this.val.id, this.val.connectedTo);
 
     NxxSvcs.logger.debug(`Added subscription to device with id "${this.val.id}"`);
 
@@ -176,6 +201,10 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
   }
 
   public async removeSubscription(subscription: NexxusRedisSubscription): Promise<boolean> {
+    if (!this.val.connectedTo) {
+      throw new RedisDeviceNotConnectedException(`Device with id "${this.val.id}" is not connected to any transport`);
+    }
+
     subscription.setAppId(this.val.appId);
 
     const index = await this.hasSubscription(subscription);
@@ -198,7 +227,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
       throw new RedisCommandErrorException(`Failed to remove subscription from device with id "${this.val.id}"`);
     }
 
-    await subscription.removeDevice(this.val.id);
+    await subscription.removeDevice(this.val.id, this.val.connectedTo);
 
     this.val.subscriptions.splice(index, 1);
 
@@ -208,6 +237,10 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
   }
 
   public async save(): Promise<void> {
+    if (this.val.subscriptions.length > 0 && !this.val.connectedTo) {
+      throw new RedisDeviceNotConnectedException(`Device with id "${this.val.id}" must be connected to a transport to have subscriptions`);
+    }
+
     const subscriptionKeys : string[] = this.val.subscriptions.map(sub => sub.getKey());
     const res = await (NxxSvcs.redis as NexxusRedis).getClient().json.set(this.getKey(), '$', {
       ...this.val,
@@ -216,7 +249,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     });
 
     for (const subInstance of this.val.subscriptions) {
-      await subInstance.addDevice(this.val.id);
+      await subInstance.addDevice(this.val.id, this.val.connectedTo!);
     }
 
     if (!res) {

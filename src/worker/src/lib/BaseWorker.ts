@@ -6,7 +6,10 @@ import {
   NexxusQueuePayload,
   NexxusBaseQueuePayload
 } from '@nexxus/core';
-import { NexxusDatabaseAdapter, NexxusDatabaseAdapterEvents } from '@nexxus/database';
+import {
+  NexxusDatabaseAdapter,
+  NexxusDatabaseAdapterEvents
+} from '@nexxus/database';
 import { NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,
   NexxusQueueMessage

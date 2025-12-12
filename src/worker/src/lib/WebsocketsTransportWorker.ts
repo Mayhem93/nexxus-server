@@ -40,6 +40,7 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
   private server : WebSocketServer;
   private unregisteredClients: Set<NexxusWsClient> = new Set();
   private registeredClients : Map<string, NexxusWsClient> = new Map(); // Map of deviceId to WebSocket client
+  private wsToNexxusClientMap: Map<WebSocket, NexxusWsClient> = new Map();
 
   constructor() {
     super();
@@ -65,6 +66,12 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
     });
 
     this.server.on('connection', this.handleConnection.bind(this));
+  }
+
+  public async init() : Promise<void> {
+    // TODO: Support multiple workers with IDs
+    this.queueName = `websockets-transport_${this.config.workerId || 1}`;
+    await super.init();
   }
 
   protected async processMessage(msg: NexxusQueueMessage<NexxusWebsocketPayload>): Promise<void> {
@@ -94,10 +101,11 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
     const clientId = crypto.randomUUID();
     const client = new NexxusWsClient(clientId, ws);
 
+    this.wsToNexxusClientMap.set(ws, client);
     this.unregisteredClients.add(client);
 
     client.once('register', async deviceId => {
-      await NexxusDevice.update(deviceId, { lastSeen: new Date(), type: 'volatile' });
+      await NexxusDevice.update(deviceId, { lastSeen: new Date(), type: 'volatile', connectedTo: this.queueName });
 
       this.unregisteredClients.delete(client);
       this.registeredClients.set(deviceId, client);
@@ -105,5 +113,30 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
 
       NxxSvcs.logger.info(`Client registered with device ID: ${deviceId}`, NexxusWebsocketsTransportWorker.loggerLabel);
     });
+
+    ws.on('close', this.handleDisconnect.bind(this));
+  }
+
+  private async handleDisconnect(ws: WebSocket): Promise<void> {
+    const nxxWsClient = this.wsToNexxusClientMap.get(ws);
+
+    if (!nxxWsClient) {
+      return;
+    }
+
+    const deviceId = nxxWsClient.getDeviceId();
+
+    if (deviceId) {
+      this.registeredClients.delete(deviceId);
+
+      await NexxusDevice.removeDeviceSubscriptions(deviceId);
+      await NexxusDevice.update(deviceId, { lastSeen: new Date(), connectedTo: null });
+    } else {
+      this.unregisteredClients.delete(nxxWsClient);
+    }
+
+    this.wsToNexxusClientMap.delete(ws);
+
+    NxxSvcs.logger.info(`Client "${nxxWsClient.getId()}" disconnected with device ID: "${deviceId || 'null'}"`, NexxusWebsocketsTransportWorker.loggerLabel);
   }
 }

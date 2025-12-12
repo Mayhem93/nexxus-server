@@ -94,6 +94,10 @@ export class NexxusWsClient extends EventEmitter<ClientEventMap> {
     return this.deviceId;
   }
 
+  public getId() : string {
+    return this.id;
+  }
+
   public async processMessage(message: NexxusWsClientEvent) {
     try {
       switch (message.event) {

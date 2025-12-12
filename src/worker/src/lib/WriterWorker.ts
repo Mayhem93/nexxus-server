@@ -5,13 +5,12 @@ import {
   NexxusConfig,
   NexxusQueueName,
   NexxusWriterPayload,
-  NexxusTransportManagerPayload
-} from '@nexxus/core';
-import {
+  NexxusTransportManagerPayload,
   NexxusApplication,
+  NexxusAppModel,
   NexxusApplicationModelType,
   MODEL_REGISTRY
-} from '@nexxus/database';
+} from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import { NexxusBaseWorker, NexxusBaseWorkerEvents } from "./BaseWorker";
 
@@ -55,14 +54,18 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
     const payload = msg.payload;
 
     switch (payload.event) {
-      case "app_created":
-        NxxSvcs.logger.info(`Received app_created event for app ID: ${payload.data.id}`, NexxusWriterWorker.loggerLabel);
+      case "model_created":
 
-        const newApp = new NexxusApplication(payload.data as NexxusApplicationModelType);
+        const appModel = new NexxusAppModel(payload.data);
 
-        await this.database.createItems([ newApp ]);
+        await this.database.createItems( [ appModel ] );
+        this.publish('transport-manager', {
+          event: 'notification_send',
+          data: appModel.getData(),
+        });
 
         break;
+
       default:
         NxxSvcs.logger.warn(`Unknown event type: ${payload.event}`, NexxusWriterWorker.loggerLabel);
     }

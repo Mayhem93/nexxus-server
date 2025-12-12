@@ -14,33 +14,6 @@ export type NexxusMessageQueueAdapterEvents = {
   message: [any];
 }
 
-/* export type NexxusMessageEventType = 'model_created';
-
-export interface NexxusBasePayload {
-  event: NexxusMessageEventType | string;
-}
-
-export interface NexxusWriterPayload extends NexxusBasePayload {
-  [key: string]: any;
-}
-
-export type NexxusKnownQueues = {
-  writer: NexxusWriterPayload;
-}
-
-export type NexxusQueueName = keyof NexxusKnownQueues | (string & {});
-
-export type NexxusQueuePayload<Q extends NexxusQueueName> =
-  Q extends keyof NexxusKnownQueues ? NexxusKnownQueues[Q] : NexxusBasePayload;
-
-export type NexxusQueueMessage<
-  TPayload extends NexxusBasePayload,
-  TMetadata = unknown
-> = {
-  payload: TPayload;
-  metadata: TMetadata;
-}; */
-
 export interface NexxusQueueMessage<TPayload = NexxusBaseQueuePayload> {
   payload: TPayload;
   metadata?: Record<string, any>;

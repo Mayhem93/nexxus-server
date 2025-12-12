@@ -23,7 +23,7 @@ export const MODEL_REGISTRY = {
   // user: 'user',
 } as const;
 
-export type ModelTypeName = typeof MODEL_REGISTRY[keyof typeof MODEL_REGISTRY];
+export type ModelTypeName = typeof MODEL_REGISTRY[keyof typeof MODEL_REGISTRY] | string;
 
 // Map model type names to their class types
 export interface ModelTypeMap {

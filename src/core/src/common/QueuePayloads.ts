@@ -1,3 +1,5 @@
+import { NexxusAppModelProps } from '../models/AppModel';
+
 export interface NexxusBaseQueuePayload {
   event: string;
   [key: string]: any;
@@ -7,11 +9,11 @@ export interface NexxusBaseQueuePayload {
 export type NexxusWriterPayload =
   | { event: 'app_created'; data: any; }
   | { event: 'app_updated'; changes: any; }
-  | { event: 'model_created'; data: any; }
+  | { event: 'model_created'; data: NexxusAppModelProps; }
   | { event: 'model_updated'; id: string; changes: any; };
 
 export type NexxusTransportManagerPayload =
-  | { event: 'notification_send'; deviceIds: string[]; data: any; };
+  | { event: 'notification_send'; data: NexxusAppModelProps; };
 
 // Payload for websocket workers (dynamic instances)
 export type NexxusWebsocketPayload =
