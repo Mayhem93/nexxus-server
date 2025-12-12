@@ -8,12 +8,13 @@ import {
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import {
-  NexxusDevice,
   NexxusRedisSubscription,
   NexxusDeviceTransportString
 } from '@nexxus/redis';
 
 import { NexxusBaseWorker, NexxusBaseWorkerEvents } from "./BaseWorker";
+
+import * as path from "node:path";
 
 type NexxusTransportManagerWorkerConfig = NexxusConfig & {
   name: string;
@@ -34,6 +35,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     source: this.name,
     specs: []
   };
+  protected static schemaPath: string = path.join(__dirname, "../../src/schemas/transport-manager-worker.schema.json");
 
   constructor() {
     super();

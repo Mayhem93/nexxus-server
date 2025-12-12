@@ -65,6 +65,9 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
       }
     });
 
+    this.server.on('listening', () => {
+      NxxSvcs.logger.info(`WebSocket server listening on port ${this.config.port}`, NexxusWebsocketsTransportWorker.loggerLabel);
+    });
     this.server.on('connection', this.handleConnection.bind(this));
   }
 

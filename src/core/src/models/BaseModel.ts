@@ -1,5 +1,5 @@
-import { NexxusApplication } from "./Application";
-import { NexxusAppModel } from "./AppModel";
+import { NexxusApplication, NexxusApplicationModelType } from "./Application";
+import { NexxusAppModel, NexxusAppModelType } from "./AppModel";
 
 import { randomUUID } from "node:crypto"
 
@@ -8,6 +8,7 @@ interface NexxusGenericModel {
 };
 
 export type AnyNexxusModel = NexxusApplication | NexxusAppModel; // Extend this union as more built-in models are added
+export type AnyNexxusModelType = NexxusApplicationModelType | NexxusAppModelType; // Extend this union as more built-in models are added
 
 export interface INexxusBaseModel extends NexxusGenericModel {
   id?: string;

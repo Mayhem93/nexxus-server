@@ -11,9 +11,11 @@ import {
   NexxusBaseModel,
   type INexxusBaseModel,
   type AnyNexxusModel,
+  type AnyNexxusModelType,
   NexxusApplication,
   NexxusApplicationModelType,
   NexxusAppModel,
+  NexxusAppModelType,
   ConnectionException,
   NEXXUS_PREFIX_LC
 } from "@nexxus/core";
@@ -135,17 +137,19 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     }
   }
 
-  async createItems(collection: Array<NexxusBaseModel>): Promise<void> {
+  async createItems(collection: Array<AnyNexxusModel>): Promise<void> {
     const bulkReq : ESBulkRequest = { body: [] };
 
     for (const item of collection) {
-      const itemData : INexxusBaseModel = item.getData();
-      let index: string;
+      let itemData : AnyNexxusModelType;
+      let index;
 
       if (item instanceof NexxusApplication) {
+        itemData = item.getData();
         index = `${NEXXUS_PREFIX_LC}-applications`;
       } else {
-        index = `${NEXXUS_PREFIX_LC}-default`;
+        itemData = (item as NexxusAppModel).getData();
+        index = `${NEXXUS_PREFIX_LC}-app-${itemData.appId}-${itemData.type}`;
       }
 
       await this.createIndexIfNotExists(index);
@@ -185,9 +189,10 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
       switch (options.model) {
         case 'application':
           return new NexxusApplication(res._source as NexxusApplicationModelType);
-      }
 
-      return new NexxusApplication(res._source as NexxusApplicationModelType);
+        default:
+          return new NexxusAppModel(res._source as NexxusAppModelType);
+      }
     });
 
     return models;

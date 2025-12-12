@@ -6,7 +6,8 @@ import {
   NexxusBaseModel,
   NexxusApplication,
   NexxusAppModel,
-  ModelTypeName
+  ModelTypeName,
+  AnyNexxusModel
 } from "@nexxus/core";
 
 export type NexxusDatabaseAdapterEvents = {
@@ -35,7 +36,7 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
   abstract reConnect(): Promise<void>;
   abstract disconnect(): Promise<void>;
 
-  abstract createItems(collection: Array<NexxusBaseModel>): Promise<void>;
+  abstract createItems(collection: Array<AnyNexxusModel>): Promise<void>;
   abstract getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>>;
   abstract searchItems(options: NexxusDbSearchOptions<'application'>): Promise<NexxusApplication[]>;
   abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<NexxusAppModel[]>;
