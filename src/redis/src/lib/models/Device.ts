@@ -100,6 +100,14 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
           jsonUpdates.push({ key, path: `$.${field}`, value: (value as Date).toISOString() });
 
           break;
+        case 'connectedTo':
+          if (value !== null && typeof value !== 'string') {
+            throw new RedisDeviceInvalidParamsException(`Invalid value for ${field}: expected string, got ${typeof value}`);
+          }
+
+          jsonUpdates.push({ key, path: `$.${field}`, value });
+
+          break;
         case 'name':
         case 'type':
         case 'status':
