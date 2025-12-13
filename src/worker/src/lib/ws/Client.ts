@@ -114,7 +114,7 @@ export class NexxusWsClient extends EventEmitter<ClientEventMap> {
     }
   }
 
-  private sendError(error: NexxusWsException) {
+  public sendError(error: NexxusWsException) {
     const errorMessage: NexxusWsServerEvent<'error'> = {
       event: 'error',
       data: {
@@ -150,12 +150,13 @@ export class NexxusWsClient extends EventEmitter<ClientEventMap> {
       await NexxusDevice.get(deviceId);
     } catch (e) {
       if (e instanceof RedisKeyNotFoundException) {
-        throw new NexxusWsDeviceNotFoundException(`Device with ID "${deviceId}" not found.`);
+        this.sendError(new NexxusWsDeviceNotFoundException(`Device with ID "${deviceId}" not found.`));
       } else {
         throw e;
       }
     }
 
+    this.deviceId = deviceId;
     this.emit('register', deviceId);
   }
 }

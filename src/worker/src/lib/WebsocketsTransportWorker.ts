@@ -6,7 +6,7 @@ import {
   NexxusWebsocketPayload
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
-import { NexxusDevice } from '@nexxus/redis';
+import { NexxusDevice, RedisDeviceInvalidParamsException } from '@nexxus/redis';
 
 import {
   NexxusBaseWorker,
@@ -14,6 +14,10 @@ import {
   NexxusWorkerServices
 } from "./BaseWorker";
 import { NexxusWsClient } from './ws/Client';
+import {
+  NexxusWsInternalServerException,
+  NexxusWsInvalidParametersException
+} from './ws/Exceptions';
 
 import * as path from "node:path";
 import { WebSocketServer, WebSocket } from "ws";
@@ -113,39 +117,59 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
     this.unregisteredClients.add(client);
 
     client.once('register', async deviceId => {
-      await NexxusDevice.update(deviceId, { lastSeen: new Date(), type: 'volatile', connectedTo: this.queueName });
+      try {
+        await NexxusDevice.update(deviceId, { lastSeen: new Date(), type: 'volatile', connectedTo: this.queueName, status: 'online' });
 
-      this.unregisteredClients.delete(client);
-      this.registeredClients.set(deviceId, client);
-      client.sendMessage('register', { success: true });
+        this.unregisteredClients.delete(client);
+        this.registeredClients.set(deviceId, client);
+        client.sendMessage('register', { success: true });
 
-      NexxusWebsocketsTransportWorker.logger.info(`Client "${clientId}" registered with device ID: "${deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+        NexxusWebsocketsTransportWorker.logger.info(`Client "${clientId}" registered with device ID: "${deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+      } catch (e) {
+        if (e instanceof RedisDeviceInvalidParamsException) {
+          client.sendError(new NexxusWsInvalidParametersException(`Invalid parameters for device with ID "${deviceId}": ${e.message}`));
+        } else {
+          client.sendError(new NexxusWsInternalServerException('An unexpected error occurred while registering the device.'));
+        }
+      }
     });
 
-    ws.on('close', this.handleDisconnect.bind(this));
+    ws.on('close', ((code: number, reason: Buffer) => {
+      this.handleDisconnect(ws);
+    }).bind(this));
   }
 
   private async handleDisconnect(ws: WebSocket): Promise<void> {
+    NexxusWebsocketsTransportWorker.logger.debug('Handling client disconnect...', NexxusWebsocketsTransportWorker.loggerLabel);
+
     const nxxWsClient = this.wsToNexxusClientMap.get(ws);
     let deviceId : string | undefined;
 
-    if (!nxxWsClient) {
-      return;
-    } else {
-      deviceId = nxxWsClient.getDeviceId();
-
-      if (deviceId) {
-        this.registeredClients.delete(deviceId);
-
-        await NexxusDevice.removeDeviceSubscriptions(deviceId);
-        await NexxusDevice.update(deviceId, { lastSeen: new Date(), connectedTo: null });
+    try {
+      if (!nxxWsClient) {
+        return;
       } else {
-        this.unregisteredClients.delete(nxxWsClient);
+        deviceId = nxxWsClient.getDeviceId();
+
+        if (deviceId) {
+          this.registeredClients.delete(deviceId);
+
+          await NexxusDevice.removeDeviceSubscriptions(deviceId);
+          await NexxusDevice.update(deviceId, { lastSeen: new Date(), connectedTo: null, status: 'offline' });
+        } else {
+          this.unregisteredClients.delete(nxxWsClient);
+        }
+
+        this.wsToNexxusClientMap.delete(ws);
       }
 
-      this.wsToNexxusClientMap.delete(ws);
+      NexxusWebsocketsTransportWorker.logger.info(`Client "${nxxWsClient.id}" disconnected with device ID: "${deviceId || 'null'}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+    } catch (e) {
+      if (e instanceof RedisDeviceInvalidParamsException) {
+        NexxusWebsocketsTransportWorker.logger.error(`Error updating device on disconnect for device ID "${deviceId}": ${e.message}`, NexxusWebsocketsTransportWorker.loggerLabel);
+      } else {
+        NexxusWebsocketsTransportWorker.logger.error(`Unexpected error on client disconnect: ${e instanceof Error ? e.message : String(e)}`, NexxusWebsocketsTransportWorker.loggerLabel);
+      }
     }
-
-    NexxusWebsocketsTransportWorker.logger.info(`Client "${nxxWsClient.id}" disconnected with device ID: "${deviceId || 'null'}"`, NexxusWebsocketsTransportWorker.loggerLabel);
   }
 }
