@@ -4,14 +4,14 @@ import { type NexxusApiRequest, type NexxusApiResponse, NexxusApi } from '../Api
 import { RequiredHeadersMiddleware, AppExistsMiddleware } from '../middlewares';
 import {
   NexxusAppModel,
-  type NexxusAppModelProps,
+  type NexxusAppModelType,
   type NexxusApplicationSchema
 } from '@nexxus/core';
 
 import { type Router } from 'express';
 
 interface CreateAppModelRequest extends NexxusApiRequest {
-  body: NexxusAppModelProps;
+  body: NexxusAppModelType;
 }
 
 export default class ModelRoute extends NexxusApiBaseRoute {
@@ -43,7 +43,7 @@ export default class ModelRoute extends NexxusApiBaseRoute {
 
     const newModel = new NexxusAppModel(req.body);
 
-    await this.messageQueue.publishMessage('writer', { event: 'model_created', data: newModel.getData() });
+    await NexxusApi.messageQueue.publishMessage('writer', { event: 'model_created', data: newModel.getData() });
 
     res.status(202).send({ message: 'Model created successfully!' });
   }

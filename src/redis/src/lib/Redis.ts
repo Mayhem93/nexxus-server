@@ -3,7 +3,8 @@ import {
   ConfigEnvVars,
   ConfigCliArgs,
   NexxusBaseService,
-  NexxusGlobalServices as NxxSvcs
+  INexxusBaseServices,
+  NexxusBaseLogger
 } from '@nexxus/core'
 
 import * as Redis from 'redis';
@@ -32,8 +33,18 @@ export class NexxusRedis extends NexxusBaseService<NexxusRedisConfig> {
     specs: []
   };
 
-  constructor() {
-    super(NxxSvcs.configManager.getConfig('redis') as NexxusRedisConfig);
+  public static logger: NexxusBaseLogger<any>;
+  public static instance: NexxusRedis;
+
+  constructor(services: INexxusBaseServices) {
+    super(services.configManager.getConfig('redis') as NexxusRedisConfig);
+
+    if (!(services.logger instanceof NexxusBaseLogger)) {
+      throw new Error('Logger service is not an instance of NexxusBaseLogger');
+    }
+
+    NexxusRedis.logger = services.logger;
+    NexxusRedis.instance = this;
   }
 
   public getClient(): Redis.RedisClientType | Redis.RedisClusterType {
@@ -81,13 +92,13 @@ export class NexxusRedis extends NexxusBaseService<NexxusRedisConfig> {
 
     await this.client.connect();
 
-    NxxSvcs.logger.info('Connected to redis', NexxusRedis.loggerLabel);
+    NexxusRedis.logger.info('Connected to redis', NexxusRedis.loggerLabel);
   }
 
   async close(): Promise<void> {
     if (this.client) {
       await this.client.close();
-      NxxSvcs.logger.info('Disconnected', NexxusRedis.loggerLabel);
+      NexxusRedis.logger.info('Disconnected', NexxusRedis.loggerLabel);
     }
   }
 }

@@ -1,10 +1,11 @@
 import {
   NexxusConfig,
   NexxusBaseService,
+  INexxusBaseServices,
+  NexxusBaseLogger,
   NexxusQueueName,
   NexxusQueuePayload,
   NexxusBaseQueuePayload,
-  NexxusGlobalServices as NxxSvcs
 } from "@nexxus/core";
 
 export type NexxusMessageQueueAdapterEvents = {
@@ -25,8 +26,16 @@ export abstract class NexxusMessageQueueAdapter<T extends NexxusConfig, Ev exten
   protected static loggerLabel: Readonly<string> = "NxxMessageQueue";
   protected abstract reconnectDelayMs: number;
 
-  constructor() {
-    super(NxxSvcs.configManager.getConfig('message_queue') as T);
+  protected static logger: NexxusBaseLogger<any>;
+
+  constructor(services: INexxusBaseServices) {
+    super(services.configManager.getConfig('message_queue') as T);
+
+    if (!(services.logger instanceof NexxusBaseLogger)) {
+      throw new Error('Logger service is not an instance of NexxusBaseLogger');
+    }
+
+    NexxusMessageQueueAdapter.logger = services.logger;
   }
 
   abstract connect(): Promise<void>;

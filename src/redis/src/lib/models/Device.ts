@@ -7,7 +7,7 @@ import {
 } from '../Exceptions'
 import { NexxusRedisBaseModel, RedisKeyType } from './BaseModel';
 import { NexxusRedisSubscription } from './Subscription';
-import { NEXXUS_PREFIX_LC, NexxusGlobalServices as NxxSvcs } from '@nexxus/core';
+import { NEXXUS_PREFIX_LC } from '@nexxus/core';
 
 import crypto from 'crypto';
 
@@ -63,7 +63,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
   }
 
   public static async get(id : string, withSubscriptions: boolean = false): Promise<NexxusDevice> {
-    const res = await (NxxSvcs.redis as NexxusRedis).getClient().json.get(`${NEXXUS_PREFIX_LC}:device:${id}`) as NexxusDeviceRedisProps | null;
+    const res = await NexxusRedis.instance.getClient().json.get(`${NEXXUS_PREFIX_LC}:device:${id}`) as NexxusDeviceRedisProps | null;
 
     if (!res) {
       throw new RedisKeyNotFoundException(`Device with id "${id}" not found`);
@@ -84,7 +84,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
   }
 
   public static async update(id: string, updates: NexxusDeviceUpdateProps): Promise<void> {
-    const redis = (NxxSvcs.redis as NexxusRedis).getClient();
+    const redis = NexxusRedis.instance.getClient();
     const key = this.getKey(id);
     const jsonUpdates : Array<{ key: string, path: string, value: any }> = [];
 
@@ -121,7 +121,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
       throw new RedisCommandErrorException(`Failed to update device with id "${id}"`);
     }
 
-    NxxSvcs.logger.debug(`Updated device with id "${id}"`);
+    NexxusRedis.logger.debug(`Updated device with id "${id}"`);
   }
 
   public static async removeDeviceSubscriptions(deviceId: string): Promise<void> {
@@ -132,14 +132,14 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
       if (device.val.connectedTo) {
         promises.push(subInstance.removeDevice(deviceId, device.val.connectedTo));
       } else {
-        NxxSvcs.logger.warn(`Device with id "${deviceId}" is not connected to any transport, cannot remove subscriptions`);
+        NexxusRedis.logger.warn(`Device with id "${deviceId}" is not connected to any transport, cannot remove subscriptions`);
       }
     }
 
     const result = await Promise.all(promises);
     const removedCount = result.filter(r => r).length;
 
-    NxxSvcs.logger.debug(`Removed ${removedCount} subscriptions from device with id "${deviceId}"`);
+    NexxusRedis.logger.debug(`Removed ${removedCount} subscriptions from device with id "${deviceId}"`);
   }
 
   public async addSubscription(subscription: NexxusRedisSubscription): Promise<boolean> {
@@ -147,14 +147,14 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
       throw new RedisDeviceNotConnectedException(`Device with id "${this.val.id}" is not connected to any transport`);
     }
 
-    const redis = (NxxSvcs.redis as NexxusRedis).getClient();
+    const redis = NexxusRedis.instance.getClient();
 
     subscription.setAppId(this.val.appId);
 
     const index = await this.hasSubscription(subscription);
 
     if (index !== null) {
-      NxxSvcs.logger.debug(`Subscription "${subscription.getKey()}" already exists on device with id "${this.val.id}"`);
+      NexxusRedis.logger.debug(`Subscription "${subscription.getKey()}" already exists on device with id "${this.val.id}"`);
 
       return false;
     }
@@ -172,7 +172,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     this.val.subscriptions.push(subscription);
     await subscription.addDevice(this.val.id, this.val.connectedTo);
 
-    NxxSvcs.logger.debug(`Added subscription to device with id "${this.val.id}"`);
+    NexxusRedis.logger.debug(`Added subscription to device with id "${this.val.id}"`);
 
     return true;
   }
@@ -188,7 +188,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
       return localSearchIndex;
     }
 
-    const subs = await (NxxSvcs.redis as NexxusRedis).getClient().json.get(
+    const subs = await NexxusRedis.instance.getClient().json.get(
       `${NEXXUS_PREFIX_LC}:device:${this.val.id}`,
       { path: '$.subscriptions' }
     ) as string[] | null;
@@ -212,12 +212,12 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     const index = await this.hasSubscription(subscription);
 
     if (index === null) {
-      NxxSvcs.logger.debug(`Subscription "${subscription.getKey()}" not found on device with id "${this.val.id}"`);
+      NexxusRedis.logger.debug(`Subscription "${subscription.getKey()}" not found on device with id "${this.val.id}"`);
 
       return false;
     }
 
-    const res = await (NxxSvcs.redis as NexxusRedis).getClient().json.arrPop(
+    const res = await NexxusRedis.instance.getClient().json.arrPop(
       `${NEXXUS_PREFIX_LC}:device:${this.val.id}`,
       {
         path: `$.subscriptions`,
@@ -233,7 +233,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
 
     this.val.subscriptions.splice(index, 1);
 
-    NxxSvcs.logger.debug(`Removed subscription from device with id "${this.val.id}"`);
+    NexxusRedis.logger.debug(`Removed subscription from device with id "${this.val.id}"`);
 
     return true;
   }
@@ -244,7 +244,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     }
 
     const subscriptionKeys : string[] = this.val.subscriptions.map(sub => sub.getKey());
-    const res = await (NxxSvcs.redis as NexxusRedis).getClient().json.set(this.getKey(), '$', {
+    const res = await NexxusRedis.instance.getClient().json.set(this.getKey(), '$', {
       ...this.val,
       lastSeen: this.val.lastSeen.toISOString(),
       subscriptions: subscriptionKeys
@@ -258,6 +258,6 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
       throw new RedisCommandErrorException(`Failed to save device with id "${this.val.id}"`);
     }
 
-    NxxSvcs.logger.debug(`Saved device with id "${this.val.id}"`);
+    NexxusRedis.logger.debug(`Saved device with id "${this.val.id}"`);
   }
 }

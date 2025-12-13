@@ -114,7 +114,7 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
       }
     }
 
-    const results = (await this.database.searchItems({
+    const results = (await NexxusApi.database.searchItems({
       model: req.body.model,
       query: {}
     })).map(item => item.getData());
@@ -133,7 +133,7 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
 
     const newApp = new NexxusApplication(req.body as NexxusApplicationModelType);
 
-    await this.messageQueue.publishMessage('writer', { data: newApp.getData(), event: 'app_created' });
+    await NexxusApi.messageQueue.publishMessage('writer', { data: newApp.getData(), event: 'app_created' });
 
     res.status(202).send({ message: 'Application created successfully!' });
   }

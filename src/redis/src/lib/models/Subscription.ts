@@ -1,8 +1,5 @@
 import { NexxusRedis } from '../Redis';
-import {
-  NEXXUS_PREFIX_LC,
-  NexxusGlobalServices as NxxSvcs
-} from '@nexxus/core';
+import { NEXXUS_PREFIX_LC } from '@nexxus/core';
 
 import crypto from 'crypto';
 
@@ -97,7 +94,7 @@ export class NexxusRedisSubscription {
     const key = this.buildPartitionKey(partition);
     const partitionIndexKey = this.buildPartitionIndexKey();
 
-    const redis = (NxxSvcs.redis as NexxusRedis).getClient();
+    const redis = NexxusRedis.instance.getClient();
 
     // Add device to partition
     await redis.sAdd(key, `${deviceId}|${transport}`);
@@ -114,7 +111,7 @@ export class NexxusRedisSubscription {
   }
 
   public async removeDevice(deviceId: string, transport: string): Promise<boolean> {
-    const redis = (NxxSvcs.redis as NexxusRedis).getClient();
+    const redis = NexxusRedis.instance.getClient();
     const partition = this.getDevicePartition(deviceId);
     const key = this.buildPartitionKey(partition);
     const removed = await redis.sRem(key, `${deviceId}|${transport}`);
@@ -130,7 +127,7 @@ export class NexxusRedisSubscription {
 
   public async getAllDevices(): Promise<Set<NexxusDeviceTransportString>> {
     const devices = new Set<NexxusDeviceTransportString>();
-    const redis = (NxxSvcs.redis as NexxusRedis).getClient();
+    const redis = NexxusRedis.instance.getClient();
     const partitionIndexKey = this.buildPartitionIndexKey();
 
     // Get list of partitions that have devices
@@ -209,7 +206,7 @@ export class NexxusRedisSubscription {
   }
 
   public static async getAllFilters(channel: NexxusSubscriptionChannel): Promise<Record<string, NexxusChannelFilter>> {
-    const redis = (NxxSvcs.redis as NexxusRedis).getClient();
+    const redis = NexxusRedis.instance.getClient();
 
     // Build the filter registry key for this channel
     const filterRegistryKey = this.buildFilterRegistryKey(channel);

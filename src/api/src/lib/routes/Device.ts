@@ -1,4 +1,3 @@
-import { NexxusGlobalServices as NxxSvcs } from '@nexxus/core';
 import { NexxusDevice, NexxusDeviceProps } from '@nexxus/redis';
 import { NexxusApiBaseRoute } from '../BaseRoute';
 import {
@@ -13,15 +12,15 @@ import { type Router } from 'express';
 
 import { randomUUID } from 'node:crypto';
 
-type RegisterDeviceRequestBody = Omit<NexxusDeviceProps, 'id' | 'appId' | 'status' | 'lastSeen' | 'subscriptions'>;
+type RegisterDeviceRequestBody = Omit<NexxusDeviceProps, 'id' | 'appId' | 'status' | 'lastSeen' | 'subscriptions' | 'connectedTo' | 'type'>;
 
 interface RegisterDeviceRequest extends NexxusApiRequest {
   body: RegisterDeviceRequestBody;
 }
 
 export default class DeviceRoute extends NexxusApiBaseRoute {
-  constructor(applicationRouter: Router) {
-    super('/:appId/device', applicationRouter);
+  constructor(appRouter: Router) {
+    super('/device', appRouter);
   }
 
   protected registerRoutes(): void {
@@ -37,10 +36,6 @@ export default class DeviceRoute extends NexxusApiBaseRoute {
   private async registerDevice(req: RegisterDeviceRequest, res: NexxusApiResponse): Promise<void> {
     if (!req.body.name || typeof req.body.name !== 'string') {
       throw new InvalidParametersException('Invalid or missing device name in request body');
-    }
-
-    if (!req.body.type || typeof req.body.type !== 'string') {
-      throw new InvalidParametersException('Invalid or missing device type in request body');
     }
 
     if (NexxusApi.getStoredApp(req.headers['nxx-app-id'] as string) === undefined) {

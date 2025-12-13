@@ -1,12 +1,13 @@
-import { WebSocket, Data as WebSocketData } from "ws";
 import {
   NexxusWsException,
   NexxusWsInvalidParametersException,
   NexxusWsInternalServerException,
   NexxusWsDeviceNotFoundException
 } from "./Exceptions";
-import { NexxusGlobalServices as NxxSvcs } from "@nexxus/core";
+import { NexxusWebsocketsTransportWorker } from "../WebsocketsTransportWorker";
 import { NexxusDevice, RedisKeyNotFoundException } from "@nexxus/redis";
+
+import { WebSocket, Data as WebSocketData } from "ws";
 
 import { EventEmitter } from "node:events";
 
@@ -94,10 +95,6 @@ export class NexxusWsClient extends EventEmitter<ClientEventMap> {
     return this.deviceId;
   }
 
-  public getId() : string {
-    return this.id;
-  }
-
   public async processMessage(message: NexxusWsClientEvent) {
     try {
       switch (message.event) {
@@ -105,13 +102,14 @@ export class NexxusWsClient extends EventEmitter<ClientEventMap> {
           await this.registerDevice(message);
           break;
         default:
-          NxxSvcs.logger.warn(`Unknown client event: ${message.event}`, 'NexxusWsClient');
+          NexxusWebsocketsTransportWorker.logger.warn(`Unknown client event: ${message.event}`, 'NexxusWsClient');
       }
     } catch (e) {
       if (!(e instanceof NexxusWsException)) {
         e = new NexxusWsInternalServerException('An unexpected error occurred while processing the message.');
       }
 
+      NexxusWebsocketsTransportWorker.logger.error(`Error processing message from client "${this.id}": ${e.message}`, 'NexxusWsClient');
       this.sendError(e);
     }
   }
@@ -132,12 +130,12 @@ export class NexxusWsClient extends EventEmitter<ClientEventMap> {
     const message: NexxusWsServerEvent<E> = { event, data };
 
     this.socket.send(JSON.stringify(message));
-    NxxSvcs.logger.debug(`Sent message to client ${this.id}: "${JSON.stringify(message)}"`, 'NexxusWsClient');
+    NexxusWebsocketsTransportWorker.logger.debug(`Sent message to client ${this.id}: "${JSON.stringify(message)}"`, 'NexxusWsClient');
   }
 
   private async registerDevice(msg: NexxusWsClientEvent<'register'>) {
     if (this.isRegistered()) {
-      NxxSvcs.logger.warn(`Client ${this.id} is already registered with device ID: "${this.deviceId}"`, 'NexxusWsClient');
+      NexxusWebsocketsTransportWorker.logger.warn(`Client ${this.id} is already registered with device ID: "${this.deviceId}"`, 'NexxusWsClient');
 
       return ;
     }

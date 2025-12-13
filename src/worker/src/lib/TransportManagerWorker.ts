@@ -1,5 +1,4 @@
 import {
-  NexxusGlobalServices as NxxSvcs,
   ConfigCliArgs,
   ConfigEnvVars,
   NexxusConfig,
@@ -12,7 +11,11 @@ import {
   NexxusDeviceTransportString
 } from '@nexxus/redis';
 
-import { NexxusBaseWorker, NexxusBaseWorkerEvents } from "./BaseWorker";
+import {
+  NexxusBaseWorker,
+  NexxusBaseWorkerEvents,
+  NexxusWorkerServices
+} from "./BaseWorker";
 
 import * as path from "node:path";
 
@@ -37,12 +40,12 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
   };
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/transport-manager-worker.schema.json");
 
-  constructor() {
-    super();
+  constructor(services: NexxusWorkerServices) {
+    super(services);
   }
 
   protected async processMessage(msg: NexxusQueueMessage<NexxusTransportManagerPayload>): Promise<void> {
-    NxxSvcs.logger.debug(`Processing message: ${JSON.stringify(msg.payload)}`, NexxusTransportManagerWorker.loggerLabel);
+    NexxusTransportManagerWorker.logger.debug(`Processing message: ${JSON.stringify(msg.payload)}`, NexxusTransportManagerWorker.loggerLabel);
 
     const payload = msg.payload;
 
@@ -50,11 +53,11 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
       case "notification_send":
         await this.handleNotificationSend(payload.data);
 
-        NxxSvcs.logger.info(`Sending notification with data: ${JSON.stringify(payload.data)}`, NexxusTransportManagerWorker.loggerLabel);
+        NexxusTransportManagerWorker.logger.info(`Sending notification with data: ${JSON.stringify(payload.data)}`, NexxusTransportManagerWorker.loggerLabel);
         break;
 
       default:
-        NxxSvcs.logger.warn(`Unknown event type: ${payload.event}`, NexxusTransportManagerWorker.loggerLabel);
+        NexxusTransportManagerWorker.logger.warn(`Unknown event type: ${payload.event}`, NexxusTransportManagerWorker.loggerLabel);
     }
   }
 
@@ -76,7 +79,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
 
       unfilteredDevices.forEach(deviceId => allDevices.add(deviceId));
 
-      NxxSvcs.logger.debug(
+      NexxusTransportManagerWorker.logger.debug(
         `Found ${unfilteredDevices.size} devices for unfiltered channel: ${JSON.stringify(channel)}`,
         NexxusTransportManagerWorker.loggerLabel
       );
@@ -92,7 +95,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
 
           filteredDevices.forEach(deviceId => allDevices.add(deviceId));
 
-          NxxSvcs.logger.debug(
+          NexxusTransportManagerWorker.logger.debug(
             `Found ${filteredDevices.size} devices for filtered channel: ${JSON.stringify(channel)} with filter: ${filterId}`,
             NexxusTransportManagerWorker.loggerLabel
           );
@@ -100,7 +103,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
       }
     }
 
-    NxxSvcs.logger.debug(
+    NexxusTransportManagerWorker.logger.debug(
       `Total ${allDevices.size} unique devices to notify for update`,
       NexxusTransportManagerWorker.loggerLabel
     );
@@ -113,7 +116,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
         data: data
       });
 
-      NxxSvcs.logger.debug(
+      NexxusTransportManagerWorker.logger.debug(
         `Notifying device: "${device}" about update to model ID: "${data.id}" via transport: "${transport}"`,
         NexxusTransportManagerWorker.loggerLabel
       );

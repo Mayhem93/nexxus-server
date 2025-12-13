@@ -5,7 +5,6 @@ export enum NexxusExceptions {
   INVALID_CONFIG = "InvalidConfigException"
 };
 
-
 export class NexxusException extends Error {
   constructor(type: string, message: string) {
     super(message);

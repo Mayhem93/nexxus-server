@@ -1,18 +1,19 @@
 import {
-  NexxusGlobalServices as NxxSvcs,
   ConfigCliArgs,
   ConfigEnvVars,
   NexxusConfig,
   NexxusQueueName,
   NexxusWriterPayload,
-  NexxusTransportManagerPayload,
   NexxusApplication,
   NexxusAppModel,
-  NexxusApplicationModelType,
   MODEL_REGISTRY
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
-import { NexxusBaseWorker, NexxusBaseWorkerEvents } from "./BaseWorker";
+import {
+  NexxusBaseWorker,
+  NexxusBaseWorkerEvents,
+  NexxusWorkerServices
+} from "./BaseWorker";
 
 import * as path from "node:path";
 
@@ -39,8 +40,8 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
   };
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/writer-worker.schema.json");
 
-  constructor() {
-    super();
+  constructor(services: NexxusWorkerServices) {
+    super(services);
   }
 
   public async init() : Promise<void> {
@@ -49,7 +50,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
   }
 
   protected async processMessage(msg: NexxusQueueMessage<NexxusWriterPayload>): Promise<void> {
-    NxxSvcs.logger.debug(`Processing message: ${JSON.stringify(msg.payload)}`, NexxusWriterWorker.loggerLabel);
+    NexxusWriterWorker.logger.debug(`Processing message: ${JSON.stringify(msg.payload)}`, NexxusWriterWorker.loggerLabel);
 
     const payload = msg.payload;
 
@@ -58,7 +59,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
         const appModel = new NexxusAppModel(payload.data);
 
-        await this.database.createItems( [ appModel ] );
+        await NexxusWriterWorker.database.createItems( [ appModel ] );
         this.publish('transport-manager', {
           event: 'notification_send',
           data: appModel.getData(),
@@ -67,17 +68,17 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
         break;
 
       default:
-        NxxSvcs.logger.warn(`Unknown event type: ${payload.event}`, NexxusWriterWorker.loggerLabel);
+        NexxusWriterWorker.logger.warn(`Unknown event type: ${payload.event}`, NexxusWriterWorker.loggerLabel);
     }
   }
 
   private async loadApps(): Promise<void> {
-    const results = await this.database.searchItems({ model: MODEL_REGISTRY.application, query: {} });
+    const results = await NexxusWriterWorker.database.searchItems({ model: MODEL_REGISTRY.application, query: {} });
 
     for (let app of results) {
       NexxusWriterWorker.loadedApps.set(app.getData().id as string, app);
     }
 
-    NxxSvcs.logger.info(`Loaded ${NexxusWriterWorker.loadedApps.size} applications into Worker service`, NexxusWriterWorker.loggerLabel);
+    NexxusWriterWorker.logger.info(`Loaded ${NexxusWriterWorker.loadedApps.size} applications into Worker service`, NexxusWriterWorker.loggerLabel);
   }
 }

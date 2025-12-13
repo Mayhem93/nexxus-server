@@ -1,9 +1,3 @@
-import {
-  NexxusGlobalServices as NxxSvcs,
-  NEXXUS_PREFIX_LC
-} from '@nexxus/core';
-import { type NexxusRedis } from '../Redis';
-
 export enum RedisKeyType {
   Hash = 'hash',
   String = 'string',
@@ -12,8 +6,6 @@ export enum RedisKeyType {
   ZSet = 'zset',
   Json = 'json'
 }
-
-type RedisKeyValueType = Record<string, any> | string | unknown;
 
 export abstract class NexxusRedisBaseModel<V> {
   protected redisKeyType : RedisKeyType;

@@ -4,11 +4,11 @@ import {
   NexxusDbSearchOptions
 } from "./DatabaseAdapter";
 import {
-  NexxusGlobalServices as NxxSvcs,
   NexxusConfig,
   ConfigCliArgs,
   ConfigEnvVars,
   NexxusBaseModel,
+  INexxusBaseServices,
   type INexxusBaseModel,
   type AnyNexxusModel,
   type AnyNexxusModelType,
@@ -77,8 +77,8 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     specs: []
   };
 
-  constructor() {
-    super();
+  constructor(services: INexxusBaseServices) {
+    super(services);
 
     this.client = new ElasticSearch.Client({
       node: `http://${this.config.host}:${this.config.port}`,
@@ -93,7 +93,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     try {
       await this.client.ping({}, { requestTimeout: 2000, maxRetries: 5});
 
-      NxxSvcs.logger.debug("Connection established with Elasticsearch database", NexxusDatabaseAdapter.loggerLabel);
+      NexxusElasticsearchDb.logger.debug("Connection established with Elasticsearch database", NexxusDatabaseAdapter.loggerLabel);
 
       const indices: ElasticSearch.estypes.CatIndicesResponse = await this.client.cat.indices({
         format: "json",
@@ -102,7 +102,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
         expand_wildcards: "open"
       });
 
-      NxxSvcs.logger.debug(`Found ${indices.length} indices in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
+      NexxusElasticsearchDb.logger.debug(`Found ${indices.length} indices in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
 
       indices.forEach(indexInfo => {
         this.collectedIndices.add(indexInfo.index as string);
@@ -127,12 +127,11 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
 
   private async createIndexIfNotExists(indexName: string): Promise<void> {
     if (!this.collectedIndices.has(indexName)) {
-      NxxSvcs.logger.debug(`Creating index ${indexName} in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
+      NexxusElasticsearchDb.logger.debug(`Creating index ${indexName} in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
 
       await this.client.indices.create({ index: indexName });
 
-      NxxSvcs.logger.debug(`Index ${indexName} created in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
-
+      NexxusElasticsearchDb.logger.debug(`Index ${indexName} created in Elasticsearch database`, NexxusDatabaseAdapter.loggerLabel);
       this.collectedIndices.add(indexName);
     }
   }

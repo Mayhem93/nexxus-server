@@ -2,15 +2,24 @@ import {
   ConfigCliArgs,
   ConfigEnvVars,
   NexxusBaseService,
+  INexxusBaseServices,
+  NexxusBaseLogger,
   NexxusConfig,
   NexxusApplication,
   MODEL_REGISTRY,
-  NexxusGlobalServices as NxxSvcs
+  FatalErrorException
 } from '@nexxus/core';
 import {
   NexxusDatabaseAdapter,
   NexxusDatabaseAdapterEvents,
 } from '@nexxus/database';
+import {
+  NexxusMessageQueueAdapter,
+  NexxusMessageQueueAdapterEvents,
+} from '@nexxus/message_queue';
+import {
+  NexxusRedis
+} from '@nexxus/redis';
 import {
   RootRoute,
   ApplicationRoute,
@@ -50,6 +59,12 @@ type NexxusApiConfig = {
   };
 } & NexxusConfig;
 
+interface ApiServices extends INexxusBaseServices {
+  database: NexxusDatabaseAdapter<NexxusConfig, NexxusDatabaseAdapterEvents>;
+  messageQueue: NexxusMessageQueueAdapter<NexxusConfig, NexxusMessageQueueAdapterEvents>;
+  redis: NexxusRedis;
+};
+
 export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   private app: Express.Express;
   private httpsServer?: https.Server;
@@ -65,10 +80,31 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   };
   protected static schemaPath: string = path.join(__dirname, '../../src/schemas/api.schema.json');
   public static instance?: NexxusApi;
-  public readonly database = NxxSvcs.database as NexxusDatabaseAdapter<NexxusConfig, NexxusDatabaseAdapterEvents>;
+  public static logger : NexxusBaseLogger<any>;
+  public static database : NexxusDatabaseAdapter<any, any>;
+  public static messageQueue : NexxusMessageQueueAdapter<any, any>;
+  public static redis : NexxusRedis;
 
-  constructor() {
-    super(NxxSvcs.configManager.getConfig('app') as NexxusApiConfig);
+  constructor(services: ApiServices) {
+    super(services.configManager.getConfig('app') as NexxusApiConfig);
+
+    if (!(services.logger instanceof NexxusBaseLogger)) {
+      throw new FatalErrorException('Logger service is not an instance of NexxusBaseLogger');
+    }
+    if (!(services.database instanceof NexxusDatabaseAdapter)) {
+      throw new FatalErrorException('Database service is not an instance of NexxusDatabaseAdapter');
+    }
+    if (!(services.messageQueue instanceof NexxusMessageQueueAdapter)) {
+      throw new FatalErrorException('Message Queue service is not an instance of NexxusMessageQueueAdapter');
+    }
+    if (!(services.redis instanceof NexxusRedis)) {
+      throw new FatalErrorException('Redis service is not an instance of NexxusRedis');
+    }
+
+    NexxusApi.logger = services.logger;
+    NexxusApi.database = services.database;
+    NexxusApi.messageQueue = services.messageQueue;
+    NexxusApi.redis = services.redis;
 
     this.app = Express();
     this.app.disable("x-powered-by");
@@ -82,7 +118,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   }
 
   public async init(): Promise<void> {
-    NxxSvcs.logger.info('Initializing API service...', NexxusApi.loggerLabel);
+    NexxusApi.logger.info('Initializing API service...', NexxusApi.loggerLabel);
 
     this.app.use(helmet({
       xDownloadOptions: false,
@@ -104,9 +140,8 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
 
     new RootRoute(this.app);
 
-    const appRoute = new ApplicationRoute(this.app);
-
-    new DeviceRoute(appRoute.getRouter());
+    new ApplicationRoute(this.app);
+    new DeviceRoute(this.app);
     new ModelRoute(this.app);
 
     this.app.use(NotFoundMiddleware);
@@ -123,20 +158,20 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     }
 
     server.on('listening', () => {
-      NxxSvcs.logger.info(`API service is listening on port ${this.config.port}`, NexxusApi.loggerLabel);
+      NexxusApi.logger.info(`API service is listening on port ${this.config.port}`, NexxusApi.loggerLabel);
     });
 
     NexxusApi.instance = this;
   }
 
   private async loadApps(): Promise<void> {
-    const results = await this.database.searchItems({ model: MODEL_REGISTRY.application, query: {} });
+    const results = await NexxusApi.database.searchItems({ model: MODEL_REGISTRY.application, query: {} });
 
     for (let app of results) {
       NexxusApi.loadedApps.set(app.getData().id as string, app as NexxusApplication);
     }
 
-    NxxSvcs.logger.info(`Loaded ${NexxusApi.loadedApps.size} applications into API service`, NexxusApi.loggerLabel);
+    NexxusApi.logger.info(`Loaded ${NexxusApi.loadedApps.size} applications into API service`, NexxusApi.loggerLabel);
   }
 
   public static getStoredApp(appId: string): NexxusApplication | undefined {

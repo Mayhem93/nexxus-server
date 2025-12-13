@@ -1,6 +1,8 @@
-import { NexxusBaseService,
-  NexxusConfig,
-  NexxusGlobalServices as NxxSvcs
+import {
+  NexxusBaseLogger,
+  INexxusBaseServices,
+  NexxusBaseService,
+  NexxusConfig
 } from '@nexxus/core';
 import {
   NexxusBaseModel,
@@ -26,8 +28,16 @@ export interface NexxusDbSearchOptions<T extends ModelTypeName | string = string
 export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends NexxusDatabaseAdapterEvents>
   extends NexxusBaseService<T, Ev extends NexxusDatabaseAdapterEvents ? Ev : NexxusDatabaseAdapterEvents> {
 
-  constructor() {
-    super(NxxSvcs.configManager.getConfig('database') as T);
+  public static logger: NexxusBaseLogger<any>;
+
+  constructor(services: INexxusBaseServices) {
+    super(services.configManager.getConfig('database') as T);
+
+    if (!(services.logger instanceof NexxusBaseLogger)) {
+      throw new Error("Logger service is not properly initialized in Database");
+    }
+
+    NexxusDatabaseAdapter.logger = services.logger;
   }
 
   protected static loggerLabel : Readonly<string> = "NxxDatabase";

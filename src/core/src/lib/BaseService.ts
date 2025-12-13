@@ -1,4 +1,10 @@
-import { ConfigEnvVars, ConfigCliArgs, AddJsonSchemaDefFuncArg } from './ConfigManager';
+import type {
+  ConfigEnvVars,
+  ConfigCliArgs,
+  AddJsonSchemaDefFuncArg,
+  NexxusConfigManager
+} from './ConfigManager';
+import type { NexxusBaseLogger } from "./Logger";
 import { FatalErrorException } from "./Exceptions";
 import { NexxusConfig } from './ConfigProvider';
 
@@ -8,6 +14,11 @@ import * as fs from "node:fs";
 import { EventEmitter } from 'node:events';
 
 export type EventMap = Record<string | symbol, any[]>;
+
+export interface INexxusBaseServices {
+  configManager: NexxusConfigManager;
+  logger: NexxusBaseLogger<NexxusConfig>;
+}
 
 function frozen(target: any, propertyKey: string) {
   Object.defineProperty(target, propertyKey, {

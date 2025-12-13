@@ -1,7 +1,6 @@
 import { ConfigEnvVars, ConfigCliArgs } from './ConfigManager';
-import { NexxusBaseService } from './BaseService';
+import { NexxusBaseService, INexxusBaseServices } from './BaseService';
 import { NexxusConfig } from './ConfigProvider';
-import { NexxusGlobalServices as NxxSvcs } from './GlobalServices';
 
 import * as Winston from 'winston';
 
@@ -35,7 +34,13 @@ export interface INexxusAsyncLogger extends INexxusLogger {
   log(level: NexxusLoggerLevels, message: LoggableType, label?: string): Promise<void>
 }
 
-export abstract class BaseNexxusLogger<T extends NexxusConfig> extends NexxusBaseService<T> implements INexxusLogger {
+interface NexxusLoggerServices extends Omit<INexxusBaseServices, 'logger'> {}
+
+export abstract class NexxusBaseLogger<T extends NexxusConfig> extends NexxusBaseService<T> implements INexxusLogger {
+
+  constructor(services: NexxusLoggerServices) {
+    super(services.configManager.getConfig('logger') as T);
+  }
 
   public abstract log(level: NexxusLoggerLevels, message: LoggableType, label?: string): void
 
@@ -68,7 +73,7 @@ export abstract class BaseNexxusLogger<T extends NexxusConfig> extends NexxusBas
   }
 }
 
-export class WinstonNexxusLogger extends BaseNexxusLogger<WinstonNexxusLoggerConfig> {
+export class WinstonNexxusLogger extends NexxusBaseLogger<WinstonNexxusLoggerConfig> {
   private winston : Winston.Logger;
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/winston-logger.schema.json");
   protected static envVars: ConfigEnvVars = {
@@ -85,8 +90,8 @@ export class WinstonNexxusLogger extends BaseNexxusLogger<WinstonNexxusLoggerCon
     specs: []
   }
 
-  constructor() {
-    super(NxxSvcs.configManager.getConfig('logger') as WinstonNexxusLoggerConfig);
+  constructor(services: NexxusLoggerServices) {
+    super(services);
 
     let format : Winston.Logform.Format;
 

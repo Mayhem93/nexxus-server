@@ -1,11 +1,11 @@
 import {
-  NexxusGlobalServices as NxxSvcs,
   ConfigCliArgs,
   ConfigEnvVars,
   NexxusConfig,
+  INexxusBaseServices,
   NexxusQueueName,
   NexxusQueuePayload,
-  FatalErrorException
+  FatalErrorException,
 } from "@nexxus/core";
 import {
   NexxusMessageQueueAdapter,
@@ -67,6 +67,10 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
   private connection: amqplib.ChannelModel | null = null;
   private channel: amqplib.Channel | null = null;
 
+  constructor(services: INexxusBaseServices) {
+    super(services);
+  }
+
   async connect(): Promise<void> {
     try {
       this.connection = await amqplib.connect({
@@ -87,16 +91,16 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
     }
 
     this.connection.on('error', (err) => {
-      NxxSvcs.logger.error(`RabbitMQ connection error: ${err.message}`, NexxusRabbitMq.loggerLabel);
+      NexxusRabbitMq.logger.error(`RabbitMQ connection error: ${err.message}`, NexxusRabbitMq.loggerLabel);
 
       this.reConnect().catch(reconnectErr => {
-        NxxSvcs.logger.error(`Failed to reconnect to RabbitMQ: ${reconnectErr.message}`, NexxusRabbitMq.loggerLabel);
+        NexxusRabbitMq.logger.error(`Failed to reconnect to RabbitMQ: ${reconnectErr.message}`, NexxusRabbitMq.loggerLabel);
       });
     });
 
     this.channel = await this.connection.createChannel();
 
-    NxxSvcs.logger.info("Connected to RabbitMQ server", NexxusRabbitMq.loggerLabel);
+    NexxusRabbitMq.logger.info("Connected to RabbitMQ server", NexxusRabbitMq.loggerLabel);
   }
 
   async reConnect(): Promise<void> {
@@ -128,7 +132,7 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
 
     NxxSvcs.logger.debug(`Asserted RabbitMQ queue ${res.queue}`, NexxusRabbitMq.loggerLabel); */
 
-    NxxSvcs.logger.debug(`Publishing message to RabbitMQ queue ${queueName}: ${messageBuffer.toString()}`, NexxusRabbitMq.loggerLabel);
+    NexxusRabbitMq.logger.debug(`Publishing message to RabbitMQ queue ${queueName}: ${messageBuffer.toString()}`, NexxusRabbitMq.loggerLabel);
 
     const options : amqplib.Options.Publish = {
       persistent: true,
@@ -155,7 +159,7 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
           metadata
         };
 
-        NxxSvcs.logger.debug(`Received message from RabbitMQ queue ${queueName}: ${queueMessage.payload}`, NexxusRabbitMq.loggerLabel);
+        NexxusRabbitMq.logger.debug(`Received message from RabbitMQ queue ${queueName}: ${queueMessage.payload}`, NexxusRabbitMq.loggerLabel);
 
         await onMessage(queueMessage);
 
