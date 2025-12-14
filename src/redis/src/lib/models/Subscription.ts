@@ -8,11 +8,13 @@ export type NexxusChannelFilter = Record<string, any>;
 
 export interface NexxusSubscriptionChannel {
   appId: string;
-  model?: string;
+  model: string;
   modelId?: string;
   userId?: string;
   filter?: NexxusChannelFilter | null;
 }
+
+export type NexxusBaseSubscriptionChannel = Omit<NexxusSubscriptionChannel, 'filter'>;
 
 export class NexxusRedisSubscription {
   private static readonly PARTITION_COUNT = 16;
@@ -35,14 +37,10 @@ export class NexxusRedisSubscription {
   }
 
   public getKey(): string {
-    let key = `${NEXXUS_PREFIX_LC}:subscription:${this.channel.appId}`;
+    let key = `${NEXXUS_PREFIX_LC}:subscription:${this.channel.appId}:${this.channel.model}`;
 
-    if (this.channel.model) {
-      key += `:model:${this.channel.model}`;
-
-      if (this.channel.modelId) {
-        key += `:${this.channel.modelId}`;
-      }
+    if (this.channel.modelId) {
+      key += `:${this.channel.modelId}`;
     }
 
     // it's redundant to have both modelId and userId
@@ -58,30 +56,33 @@ export class NexxusRedisSubscription {
   }
 
   public static fromKey(key: string): NexxusRedisSubscription {
-    const parts = key.split(':');
+    // Remove prefix: "nexxus:subscription:"
+    const withoutPrefix = key.replace(`${NEXXUS_PREFIX_LC}:subscription:`, '');
+    const parts = withoutPrefix.split(':');
 
-    const appId = parts[2];
-    let model: string | undefined;
+    // Structure: appId:model[:modelId][:user:userId][:filter:filterId]
+    const appId = parts[0];
+    const model = parts[1];
+
     let modelId: string | undefined;
     let userId: string | undefined;
     let filterId: string | undefined;
 
-    for (let i = 3; i < parts.length; i++) {
-      if (parts[i] === 'model') {
-        model = parts[i + 1];
+    // Parse remaining parts
+    let i = 2;
+    while (i < parts.length) {
+      const part = parts[i];
 
-        if (i + 2 < parts.length && parts[i + 2] !== 'user' && parts[i + 2] !== 'filter') {
-          modelId = parts[i + 2];
-          i++;
-        }
-
-        i++;
-      } else if (parts[i] === 'user') {
+      if (part === 'user') {
         userId = parts[i + 1];
-        i++;
-      } else if (parts[i] === 'filter') {
+        i += 2;
+      } else if (part === 'filter') {
         filterId = parts[i + 1];
-        i++;
+        i += 2;
+      } else {
+        // It's the modelId (appears right after model, before any keywords)
+        modelId = part;
+        i += 1;
       }
     }
 
@@ -153,39 +154,29 @@ export class NexxusRedisSubscription {
     return devices;
   }
 
-  public static *generateSubscriptionPatterns(data: {
-    appId: string;
-    userId?: string;
-    model?: string;
-    modelId?: string;
-  }): Generator<NexxusSubscriptionChannel> {
+  public static *generateSubscriptionPatterns(data: NexxusBaseSubscriptionChannel): Generator<NexxusSubscriptionChannel> {
     const { appId, userId, model, modelId } = data;
 
-    // Level 1: App-only subscription
-    yield { appId };
+    // Level 1: App model only subscription
+    yield { appId, model };
 
     // Level 2: Add userId dimension
     if (userId) {
-      yield { appId, userId };
+      yield { appId, model, userId };
     }
 
-    // Level 3: Add model dimension
-    if (model) {
-      yield { appId, model };
+    // Level 4: Add modelId
+    if (modelId) {
+      yield { appId, model, modelId };
+    }
 
-      // Level 4: Add modelId
+    // Level 5: userId + model combination
+    if (userId) {
+      yield { appId, userId, model };
+
+      // Level 6: userId + model + modelId (most specific)
       if (modelId) {
-        yield { appId, model, modelId };
-      }
-
-      // Level 5: userId + model combination
-      if (userId) {
-        yield { appId, userId, model };
-
-        // Level 6: userId + model + modelId (most specific)
-        if (modelId) {
-          yield { appId, userId, model, modelId };
-        }
+        yield { appId, userId, model, modelId };
       }
     }
   }
@@ -223,17 +214,13 @@ export class NexxusRedisSubscription {
   }
 
   private buildPartitionKey(partition: string): string {
-    let key = `${NEXXUS_PREFIX_LC}:subscription:${this.channel.appId}`;
+    let key = `${NEXXUS_PREFIX_LC}:subscription:${this.channel.appId}:${this.channel.model}`;
 
-    if (this.channel.model) {
-      key += `:model:${this.channel.model}`;
-
-      if (this.channel.modelId) {
-        key += `:${this.channel.modelId}`;
-      }
+    if (this.channel.modelId) {
+      key += `:${this.channel.modelId}`;
     }
 
-    if (this.channel.userId) {
+    if (this.channel.userId && !this.channel.modelId) {
       key += `:user:${this.channel.userId}`;
     }
 
@@ -247,13 +234,13 @@ export class NexxusRedisSubscription {
   }
 
   private buildPartitionIndexKey(): string {
-    let key = `${NEXXUS_PREFIX_LC}:subscription-partitions:${this.channel.appId}`;
+    let key = `${NEXXUS_PREFIX_LC}:subscription-partitions:${this.channel.appId}:${this.channel.model}`;
 
-    if (this.channel.model) {
-      key += `:model:${this.channel.model}`;
+    if (this.channel.modelId) {
+      key += `:model:${this.channel.modelId}`;
     }
 
-    if (this.channel.userId) {
+    if (this.channel.userId && !this.channel.modelId) {
       key += `:user:${this.channel.userId}`;
     }
 
@@ -269,17 +256,13 @@ export class NexxusRedisSubscription {
   }
 
   private static buildFilterRegistryKey(channel: NexxusSubscriptionChannel): string {
-    let key = `${NEXXUS_PREFIX_LC}:subscription-filters:${channel.appId}`;
-
-    if (channel.model) {
-      key += `:model:${channel.model}`;
-    }
+    let key = `${NEXXUS_PREFIX_LC}:subscription-filters:${channel.appId}:${channel.model}`;
 
     if (channel.modelId) {
       key += `:${channel.modelId}`;
     }
 
-    if (channel.userId) {
+    if (channel.userId && !channel.modelId) {
       key += `:user:${channel.userId}`;
     }
 

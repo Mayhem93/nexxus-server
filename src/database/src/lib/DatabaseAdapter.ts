@@ -20,7 +20,7 @@ export type NexxusDatabaseAdapterEvents = {
 
 export interface NexxusDbSearchOptions<T extends ModelTypeName | string = string> {
   model: T;
-  query: any;
+  query: Record<string, any>;
   limit?: number;
   offset?: number;
 }

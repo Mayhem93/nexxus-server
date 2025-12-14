@@ -3,10 +3,13 @@ import {
   ConfigEnvVars,
   NexxusConfig,
   NexxusQueueName,
-  NexxusTransportManagerPayload
+  NexxusTransportManagerPayload,
+  NexxusModelCreatedPayload,
+  NexxusModelUpdatedPayload
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import {
+  NexxusBaseSubscriptionChannel,
   NexxusRedisSubscription,
   NexxusDeviceTransportString
 } from '@nexxus/redis';
@@ -50,27 +53,63 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     const payload = msg.payload;
 
     switch (payload.event) {
-      case "notification_send":
-        await this.handleNotificationSend(payload.data);
+      case "model_created":
+        await this.handleModelCreated(payload.data);
 
-        NexxusTransportManagerWorker.logger.info(`Sending notification with data: ${JSON.stringify(payload.data)}`, NexxusTransportManagerWorker.loggerLabel);
+        break;
+
+      case "model_updated":
+        await this.handleModelUpdated(payload.data);
+
+        NexxusTransportManagerWorker.logger.info(`Processing model update with data: ${JSON.stringify(payload.data)}`, NexxusTransportManagerWorker.loggerLabel);
         break;
 
       default:
-        NexxusTransportManagerWorker.logger.warn(`Unknown event type: ${payload.event}`, NexxusTransportManagerWorker.loggerLabel);
+        NexxusTransportManagerWorker.logger.warn(`Unknown event type: ${(payload as any).event as string}`, NexxusTransportManagerWorker.loggerLabel);
     }
   }
 
-  private async handleNotificationSend(data: NexxusTransportManagerPayload['data']): Promise<void> {
+  private async handleModelCreated(data: NexxusModelCreatedPayload['data']): Promise<void> {
+    const devices = await this.getDevicesFromGeneratedChannels({
+      appId: data.appId,
+      userId: data.userId,
+      model: data.type,
+      modelId: data.id
+    });
+    const transportToDeviceMap: Map<NexxusQueueName, Set<string>> = new Map();
+
+    for (const device of devices) {
+      const [id, transport] = device.split('|');
+
+      if (!transportToDeviceMap.has(transport as NexxusQueueName)) {
+        transportToDeviceMap.set(transport as NexxusQueueName, new Set());
+      }
+
+      transportToDeviceMap.get(transport as NexxusQueueName)!.add(id);
+    }
+
+    for (const [transport, deviceSet] of transportToDeviceMap.entries()) {
+
+      this.publish(transport as NexxusQueueName, {
+        event: 'device_message',
+        deviceIds: Array.from(deviceSet.values()),
+        data: data
+      });
+
+      NexxusTransportManagerWorker.logger.debug(
+        `Notifying ${deviceSet.size} devices about update to model ID: "${data.id}" via transport: "${transport}"`,
+        NexxusTransportManagerWorker.loggerLabel
+      );
+    }
+  }
+
+  private async handleModelUpdated(data: Record<string, any>): Promise<void> {}
+
+  private async getDevicesFromGeneratedChannels(channel: NexxusBaseSubscriptionChannel): Promise<Set<NexxusDeviceTransportString>> {
     const allDevices = new Set<NexxusDeviceTransportString>();
 
     // Step 1: Generate all base channels (without filters)
-    const baseChannels = NexxusRedisSubscription.generateSubscriptionPatterns({
-      appId: data.appId,
-      userId: data.userId,
-      model: data.model,
-      modelId: data.id
-    });
+    const baseChannels = NexxusRedisSubscription.generateSubscriptionPatterns(channel);
 
     for (const channel of baseChannels) {
       // Get devices from unfiltered subscription
@@ -108,18 +147,6 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
       NexxusTransportManagerWorker.loggerLabel
     );
 
-    for (const device of allDevices) {
-      const [id, transport] = device.split('|');
-
-      this.publish(transport as NexxusQueueName, {
-        event: 'device_message',
-        data: data
-      });
-
-      NexxusTransportManagerWorker.logger.debug(
-        `Notifying device: "${device}" about update to model ID: "${data.id}" via transport: "${transport}"`,
-        NexxusTransportManagerWorker.loggerLabel
-      );
-    }
+    return allDevices;
   }
 }

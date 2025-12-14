@@ -24,6 +24,7 @@ import {
   RootRoute,
   ApplicationRoute,
   DeviceRoute,
+  SubscriptionRoute,
   ModelRoute
 } from './routes';
 import {
@@ -142,6 +143,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
 
     new ApplicationRoute(this.app);
     new DeviceRoute(this.app);
+    new SubscriptionRoute(this.app);
     new ModelRoute(this.app);
 
     this.app.use(NotFoundMiddleware);

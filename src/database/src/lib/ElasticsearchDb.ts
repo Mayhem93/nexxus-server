@@ -171,7 +171,9 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     if (options.model === 'application') {
       index += '-applications';
     } else {
-      index += '-default';
+      const modelName = options.model;
+
+      index += `-app-${options.query.appId}-${modelName}`;
     }
 
     const searchResults = await this.client.search({

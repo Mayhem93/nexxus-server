@@ -61,7 +61,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
         await NexxusWriterWorker.database.createItems( [ appModel ] );
         this.publish('transport-manager', {
-          event: 'notification_send',
+          event: 'model_created',
           data: appModel.getData(),
         });
 

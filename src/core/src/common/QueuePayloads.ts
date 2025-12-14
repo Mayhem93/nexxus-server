@@ -5,19 +5,17 @@ export interface NexxusBaseQueuePayload {
   [key: string]: any;
 }
 
-// Built-in worker payloads
-export type NexxusWriterPayload =
-  | { event: 'app_created'; data: any; }
-  | { event: 'app_updated'; changes: any; }
-  | { event: 'model_created'; data: NexxusAppModelType; }
-  | { event: 'model_updated'; id: string; changes: any; };
+export type NexxusModelCreatedPayload = { event: 'model_created'; data: NexxusAppModelType; };
+export type NexxusModelUpdatedPayload = { event: 'model_updated'; data: Record<string, any>; };
 
-export type NexxusTransportManagerPayload =
-  | { event: 'notification_send'; data: NexxusAppModelType; };
+// Built-in worker payloads
+export type NexxusWriterPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload;
+
+export type NexxusTransportManagerPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload;
 
 // Payload for websocket workers (dynamic instances)
 export type NexxusWebsocketPayload =
-  | { event: 'device_message'; deviceId: string; data: any; };
+  | { event: 'device_message'; deviceIds: Array<string>; data: any; };
 
 export type NexxusMqttPayload =
   | { event: 'mqtt_publish'; topic: string; payload: Buffer; }

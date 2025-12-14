@@ -41,7 +41,10 @@ export default class ModelRoute extends NexxusApiBaseRoute {
       throw new ModelNotFoundException(`Model "${req.body.type}" not found in schema for the application "${appId}"`);
     }
 
-    const newModel = new NexxusAppModel(req.body);
+    const newModel = new NexxusAppModel({
+      ...req.body,
+      appId: appId
+    });
 
     await NexxusApi.messageQueue.publishMessage('writer', { event: 'model_created', data: newModel.getData() });
 

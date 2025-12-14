@@ -91,14 +91,22 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
 
     switch (payload.event) {
       case "device_message":
-        NexxusWebsocketsTransportWorker.logger.info(`Received device_message event for device ID: "${payload.deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+        NexxusWebsocketsTransportWorker.logger.info("Received device_message event", NexxusWebsocketsTransportWorker.loggerLabel);
 
-        const client = this.registeredClients.get(payload.deviceId);
+        if (payload.deviceIds.length === 0) {
+          NexxusWebsocketsTransportWorker.logger.warn("No device IDs provided in device_message payload", NexxusWebsocketsTransportWorker.loggerLabel);
 
-        if (client) {
-          client.sendMessage('model_update', payload.data);
-        } else {
-          NexxusWebsocketsTransportWorker.logger.warn(`No registered client found for device ID: "${payload.deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+          return;
+        }
+
+        for (const deviceId of payload.deviceIds) {
+          const client = this.registeredClients.get(deviceId);
+
+          if (client) {
+            client.sendMessage('model_update', payload.data);
+          } else {
+            NexxusWebsocketsTransportWorker.logger.warn(`No registered client found for device ID: "${deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+          }
         }
 
         break;
@@ -135,11 +143,11 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
     });
 
     ws.on('close', ((code: number, reason: Buffer) => {
-      this.handleDisconnect(ws);
+      this.handleDisconnect(ws, code, reason);
     }).bind(this));
   }
 
-  private async handleDisconnect(ws: WebSocket): Promise<void> {
+  private async handleDisconnect(ws: WebSocket, code: number, reason: Buffer): Promise<void> {
     NexxusWebsocketsTransportWorker.logger.debug('Handling client disconnect...', NexxusWebsocketsTransportWorker.loggerLabel);
 
     const nxxWsClient = this.wsToNexxusClientMap.get(ws);
@@ -163,7 +171,10 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
         this.wsToNexxusClientMap.delete(ws);
       }
 
-      NexxusWebsocketsTransportWorker.logger.info(`Client "${nxxWsClient.id}" disconnected with device ID: "${deviceId || 'null'}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+      NexxusWebsocketsTransportWorker.logger.info(
+        `Client "${nxxWsClient.id}" disconnected with device ID: "${deviceId || 'null'}. Code ${code}, Reason: "${reason.toString()}"`,
+        NexxusWebsocketsTransportWorker.loggerLabel
+      );
     } catch (e) {
       if (e instanceof RedisDeviceInvalidParamsException) {
         NexxusWebsocketsTransportWorker.logger.error(`Error updating device on disconnect for device ID "${deviceId}": ${e.message}`, NexxusWebsocketsTransportWorker.loggerLabel);
