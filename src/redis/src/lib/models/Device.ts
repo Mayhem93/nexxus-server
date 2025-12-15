@@ -132,7 +132,8 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
     NexxusRedis.logger.debug(`Updated device with id "${id}"`);
   }
 
-  public static async removeDeviceSubscriptions(deviceId: string): Promise<void> {
+  public static async removeAllSubscriptions(deviceId: string): Promise<void> {
+    const redis = NexxusRedis.instance.getClient();
     const device = await NexxusDevice.get(deviceId, true);
     const promises : Promise<boolean>[] = [];
 
@@ -146,6 +147,8 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
 
     const result = await Promise.all(promises);
     const removedCount = result.filter(r => r).length;
+
+    await redis.json.clear(`${NEXXUS_PREFIX_LC}:device:${deviceId}`, { path: '$.subscriptions' });
 
     NexxusRedis.logger.debug(`Removed ${removedCount} subscriptions from device with id "${deviceId}"`);
   }

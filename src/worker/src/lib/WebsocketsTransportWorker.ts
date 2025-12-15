@@ -162,7 +162,7 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
         if (deviceId) {
           this.registeredClients.delete(deviceId);
 
-          await NexxusDevice.removeDeviceSubscriptions(deviceId);
+          await NexxusDevice.removeAllSubscriptions(deviceId);
           await NexxusDevice.update(deviceId, { lastSeen: new Date(), connectedTo: null, status: 'offline' });
         } else {
           this.unregisteredClients.delete(nxxWsClient);
