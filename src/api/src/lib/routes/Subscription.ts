@@ -8,12 +8,14 @@ import {
 import {
   InvalidParametersException,
   NotFoundException,
-  ModelNotFoundException
+  ModelNotFoundException,
+  DeviceNotConnectedException
 } from '../Exceptions';
 import {
   RedisKeyNotFoundException,
   NexxusRedisSubscription,
-  NexxusDevice
+  NexxusDevice,
+  RedisDeviceNotConnectedException
 } from '@nexxus/redis';
 
 import { type Router } from 'express';
@@ -108,6 +110,8 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
       } catch (e) {
         if (e instanceof RedisKeyNotFoundException) {
           throw new NotFoundException(`Device with id "${deviceId}" not found`);
+        } else if (e instanceof RedisDeviceNotConnectedException) {
+          throw new DeviceNotConnectedException(`Device with id "${deviceId}" is not connected to any transport`);
         }
 
         throw e;

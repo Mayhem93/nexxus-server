@@ -5,7 +5,8 @@ enum ApiExceptions {
   NOT_FOUND = "NotFoundException",
   SERVER_ERROR = "ServerErrorException",
   APPLICATION_NOT_FOUND = "ApplicationNotFoundException",
-  MODEL_NOT_FOUND = "ModelNotFoundException"
+  MODEL_NOT_FOUND = "ModelNotFoundException",
+  DEVICE_NOT_CONNECTED = "DeviceNotConnectedException"
 };
 
 export abstract class NexxusApiException extends NexxusException {
@@ -52,5 +53,13 @@ export class ModelNotFoundException extends NexxusApiException {
 
   constructor(message: string) {
     super(ApiExceptions.MODEL_NOT_FOUND, message);
+  }
+}
+
+export class DeviceNotConnectedException extends NexxusApiException {
+  public readonly statusCode = 409;
+
+  constructor(message: string) {
+    super(ApiExceptions.DEVICE_NOT_CONNECTED, message);
   }
 }

@@ -8,7 +8,7 @@ import * as path from "node:path";
 
 type LoggableType = string | object | number | boolean | null | undefined;
 
-export enum NexxusLoggerLevels {
+export const enum NexxusLoggerLevels {
   EMERGENCY = "emerg",
   ALERT = "alert",
   CRITICAL = "crit",

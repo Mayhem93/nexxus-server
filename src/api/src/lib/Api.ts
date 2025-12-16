@@ -29,7 +29,8 @@ import {
 } from './routes';
 import {
   NotFoundMiddleware,
-  ErrorMiddleware
+  ErrorMiddleware,
+  RequestLoggerMiddleware
 } from './middlewares';
 
 import Express from 'express';
@@ -121,6 +122,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   public async init(): Promise<void> {
     NexxusApi.logger.info('Initializing API service...', NexxusApi.loggerLabel);
 
+    this.app.use(RequestLoggerMiddleware());
     this.app.use(helmet({
       xDownloadOptions: false,
       xXssProtection: false,
