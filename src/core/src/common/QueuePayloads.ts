@@ -1,4 +1,5 @@
 import { NexxusAppModelType } from '../models/AppModel';
+import { NexxusJsonPatchType } from '../common/JsonPatch';
 
 export interface NexxusBaseQueuePayload {
   event: string;
@@ -6,7 +7,7 @@ export interface NexxusBaseQueuePayload {
 }
 
 export type NexxusModelCreatedPayload = { event: 'model_created'; data: NexxusAppModelType; };
-export type NexxusModelUpdatedPayload = { event: 'model_updated'; data: Record<string, any>; };
+export type NexxusModelUpdatedPayload = { event: 'model_updated'; data: NexxusJsonPatchType; };
 
 // Built-in worker payloads
 export type NexxusWriterPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload;
@@ -15,7 +16,7 @@ export type NexxusTransportManagerPayload = NexxusModelCreatedPayload | NexxusMo
 
 // Payload for websocket workers (dynamic instances)
 export type NexxusWebsocketPayload =
-  | { event: 'device_message'; deviceIds: Array<string>; data: any; };
+  | { event: 'device_message'; deviceIds: Array<string>; data: NexxusModelCreatedPayload | NexxusModelUpdatedPayload; };
 
 export type NexxusMqttPayload =
   | { event: 'mqtt_publish'; topic: string; payload: Buffer; }

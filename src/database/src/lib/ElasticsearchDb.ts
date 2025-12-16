@@ -16,11 +16,17 @@ import {
   NexxusApplicationModelType,
   NexxusAppModel,
   NexxusAppModelType,
+  NexxusJsonPatch,
   ConnectionException,
   NEXXUS_PREFIX_LC
 } from "@nexxus/core";
 
 import * as ElasticSearch from '@elastic/elasticsearch';
+import type {
+  BulkOperationBase,
+  BulkOperationContainer,
+  BulkUpdateAction
+} from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 
 import * as path from "node:path";
 
@@ -35,15 +41,22 @@ export type ElasticSearchEvents = NexxusDatabaseAdapterEvents & {
   something: [string];
 }
 
-type ESBulkItemHeader = {
+type ESBulkIndexItemHeader = {
   index: {
     _id: string;
     _index: string;
   }
 };
 
+type ESBulkUpdateItemHeader = {
+  update: {
+    _id: string;
+    _index: string;
+  }
+};
+
 type ESBulkRequest = {
-  body: Array<ESBulkItemHeader | INexxusBaseModel>;
+  body: Array<BulkOperationBase | BulkOperationContainer | INexxusBaseModel>;
 }
 
 export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchConfig, ElasticSearchEvents> {
@@ -204,8 +217,46 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     return [];
   }
 
-  async updateItems(collection: Array<NexxusBaseModel>, query: any, updates: any): Promise<void> {
-    // Implementation for updating items in Elasticsearch
+  async updateItems(collection: Array<NexxusJsonPatch>): Promise<void> {
+    const bulkBody: Array<BulkOperationContainer | BulkUpdateAction> = [];
+
+    for (const patch of collection) {
+      const patchData = patch.get();
+      const index = `${NEXXUS_PREFIX_LC}-app-${patchData.metadata.appId}-${patchData.metadata.type}`
+
+      // Build a single script for all paths in this patch
+      const scriptLines = patchData.path.map((path, idx) => {
+        switch (patchData.op) {
+          case 'replace':
+            return `ctx._source.${path} = params.value${idx};\n`;
+          default:
+            NexxusElasticsearchDb.logger.warn(`Unsupported JSON Patch operation: ${patchData.op}`, NexxusDatabaseAdapter.loggerLabel);
+        }
+      });
+
+      const scriptParams = patchData.path.reduce((acc, path, idx) => {
+        acc[`value${idx}`] = patchData.value[idx];
+        
+        return acc;
+      }, {} as Record<string, any>);
+
+      bulkBody.push(
+        { update: { _index: index, _id: patchData.metadata.id } },
+        {
+          script: {
+            source: scriptLines.join('; '),
+            lang: 'painless',
+            params: scriptParams
+          }
+        }
+      );
+    }
+
+    if (bulkBody.length === 0) {
+      NexxusElasticsearchDb.logger.warn("No items to update in Elasticsearch database", NexxusDatabaseAdapter.loggerLabel);
+    } else {
+      await this.client.bulk({ operations: bulkBody });
+    }
   }
 
   async deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void> {

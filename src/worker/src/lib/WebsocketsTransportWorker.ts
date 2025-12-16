@@ -1,6 +1,7 @@
 import {
   ConfigCliArgs,
   ConfigEnvVars,
+  NexxusBaseQueuePayload,
   NexxusConfig,
   NexxusQueueName,
   NexxusWebsocketPayload
@@ -91,7 +92,7 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
 
     switch (payload.event) {
       case "device_message":
-        NexxusWebsocketsTransportWorker.logger.info("Received device_message event", NexxusWebsocketsTransportWorker.loggerLabel);
+        NexxusWebsocketsTransportWorker.logger.debug("Received device_message event", NexxusWebsocketsTransportWorker.loggerLabel);
 
         if (payload.deviceIds.length === 0) {
           NexxusWebsocketsTransportWorker.logger.warn("No device IDs provided in device_message payload", NexxusWebsocketsTransportWorker.loggerLabel);
@@ -103,7 +104,22 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
           const client = this.registeredClients.get(deviceId);
 
           if (client) {
-            client.sendMessage('model_update', payload.data);
+            switch (payload.data.event) {
+              case 'model_created':
+                NexxusWebsocketsTransportWorker.logger.debug(`Sending model_created to device ID: "${deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+
+                client.sendMessage('model_created', payload.data.data);
+
+                break;
+              case 'model_updated':
+                NexxusWebsocketsTransportWorker.logger.debug(`Sending model_updated to device ID: "${deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+
+                client.sendMessage('model_updated', payload.data.data);
+
+                break;
+              default:
+                NexxusWebsocketsTransportWorker.logger.warn(`Unknown event "${(payload.data as NexxusBaseQueuePayload).event}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+            }
           } else {
             NexxusWebsocketsTransportWorker.logger.warn(`No registered client found for device ID: "${deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
           }

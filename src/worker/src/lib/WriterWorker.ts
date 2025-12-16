@@ -6,7 +6,9 @@ import {
   NexxusWriterPayload,
   NexxusApplication,
   NexxusAppModel,
-  MODEL_REGISTRY
+  NexxusJsonPatch,
+  MODEL_REGISTRY,
+  NexxusBaseQueuePayload
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import {
@@ -26,10 +28,10 @@ type NexxusWriterWorkerEvents = NexxusBaseWorkerEvents & {
 };
 
 export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfig, NexxusWriterWorkerEvents, NexxusWriterPayload> {
-  protected queueName : NexxusQueueName = "writer";
+  protected queueName : NexxusQueueName = 'writer';
   private static readonly loadedApps: Map<string, NexxusApplication> = new Map();
 
-  protected static loggerLabel: Readonly<string> = "NxxWriterWorker";
+  protected static loggerLabel: Readonly<string> = 'NxxWriterWorker';
   protected static cliArgs: ConfigCliArgs = {
     source: this.name,
     specs: []
@@ -38,7 +40,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
     source: this.name,
     specs: []
   };
-  protected static schemaPath: string = path.join(__dirname, "../../src/schemas/writer-worker.schema.json");
+  protected static schemaPath: string = path.join(__dirname, '../../src/schemas/writer-worker.schema.json');
 
   constructor(services: NexxusWorkerServices) {
     super(services);
@@ -60,6 +62,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
         const appModel = new NexxusAppModel(payload.data);
 
         await NexxusWriterWorker.database.createItems( [ appModel ] );
+
         this.publish('transport-manager', {
           event: 'model_created',
           data: appModel.getData(),
@@ -67,8 +70,21 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
         break;
 
+      case 'model_updated':
+
+        const jsonPatch = new NexxusJsonPatch(payload.data);
+
+        await NexxusWriterWorker.database.updateItems( [ jsonPatch ] );
+
+        this.publish('transport-manager', {
+          event: 'model_updated',
+          data: jsonPatch.get(),
+        });
+
+        break;
+
       default:
-        NexxusWriterWorker.logger.warn(`Unknown event type: ${payload.event}`, NexxusWriterWorker.loggerLabel);
+        NexxusWriterWorker.logger.warn(`Unknown event type: ${(payload as NexxusBaseQueuePayload).event}`, NexxusWriterWorker.loggerLabel);
     }
   }
 

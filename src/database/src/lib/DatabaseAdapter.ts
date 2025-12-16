@@ -9,7 +9,8 @@ import {
   NexxusApplication,
   NexxusAppModel,
   ModelTypeName,
-  AnyNexxusModel
+  AnyNexxusModel,
+  NexxusJsonPatch
 } from "@nexxus/core";
 
 export type NexxusDatabaseAdapterEvents = {
@@ -50,6 +51,6 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
   abstract getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>>;
   abstract searchItems(options: NexxusDbSearchOptions<'application'>): Promise<NexxusApplication[]>;
   abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<NexxusAppModel[]>;
-  abstract updateItems(collection: Array<NexxusBaseModel>, query: any, updates: any): Promise<void>;
+  abstract updateItems(collection: Array<NexxusJsonPatch>): Promise<void>;
   abstract deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void>;
 }

@@ -5,7 +5,8 @@ import {
   NexxusQueueName,
   NexxusTransportManagerPayload,
   NexxusModelCreatedPayload,
-  NexxusModelUpdatedPayload
+  NexxusModelUpdatedPayload,
+  NexxusBaseQueuePayload
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import {
@@ -57,15 +58,14 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
         await this.handleModelCreated(payload.data);
 
         break;
-
       case "model_updated":
         await this.handleModelUpdated(payload.data);
 
         NexxusTransportManagerWorker.logger.info(`Processing model update with data: ${JSON.stringify(payload.data)}`, NexxusTransportManagerWorker.loggerLabel);
-        break;
 
+        break;
       default:
-        NexxusTransportManagerWorker.logger.warn(`Unknown event type: ${(payload as any).event as string}`, NexxusTransportManagerWorker.loggerLabel);
+        NexxusTransportManagerWorker.logger.warn(`Unknown event type: ${(payload as NexxusBaseQueuePayload).event}`, NexxusTransportManagerWorker.loggerLabel);
     }
   }
 
@@ -93,17 +93,55 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
       this.publish(transport as NexxusQueueName, {
         event: 'device_message',
         deviceIds: Array.from(deviceSet.values()),
-        data: data
+        data: {
+          event: 'model_created',
+          data
+        }
       });
 
       NexxusTransportManagerWorker.logger.debug(
-        `Notifying ${deviceSet.size} devices about update to model ID: "${data.id}" via transport: "${transport}"`,
+        `Notifying ${deviceSet.size} devices about create model ID: "${data.id}" via transport: "${transport}"`,
         NexxusTransportManagerWorker.loggerLabel
       );
     }
   }
 
-  private async handleModelUpdated(data: Record<string, any>): Promise<void> {}
+  private async handleModelUpdated(data: NexxusModelUpdatedPayload['data']): Promise<void> {
+    const devices = await this.getDevicesFromGeneratedChannels({
+      appId: data.metadata.appId,
+      userId: undefined, //TODO: fix this when we implement user model
+      model: data.metadata.type,
+      modelId: data.metadata.id
+    });
+    const transportToDeviceMap: Map<NexxusQueueName, Set<string>> = new Map();
+
+    for (const device of devices) {
+      const [id, transport] = device.split('|');
+
+      if (!transportToDeviceMap.has(transport as NexxusQueueName)) {
+        transportToDeviceMap.set(transport as NexxusQueueName, new Set());
+      }
+
+      transportToDeviceMap.get(transport as NexxusQueueName)!.add(id);
+    }
+
+    for (const [transport, deviceSet] of transportToDeviceMap.entries()) {
+
+      this.publish(transport as NexxusQueueName, {
+        event: 'device_message',
+        deviceIds: Array.from(deviceSet.values()),
+        data: {
+          event: 'model_updated',
+          data
+        }
+      });
+
+      NexxusTransportManagerWorker.logger.debug(
+        `Notifying ${deviceSet.size} devices about update to model ID: "${data.metadata.id}" via transport: "${transport}"`,
+        NexxusTransportManagerWorker.loggerLabel
+      );
+    }
+  }
 
   private async getDevicesFromGeneratedChannels(channel: NexxusBaseSubscriptionChannel): Promise<Set<NexxusDeviceTransportString>> {
     const allDevices = new Set<NexxusDeviceTransportString>();

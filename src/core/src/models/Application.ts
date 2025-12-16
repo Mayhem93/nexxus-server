@@ -4,36 +4,37 @@ import {
   MODEL_REGISTRY
 } from "./BaseModel";
 
-type FieldType = 'string' | 'number' | 'boolean' | 'array' | 'object' | 'date';
+export type NexxusModelPrimitiveType = 'string' | 'number' | 'boolean' | 'date';
+export type NexxusModelFieldType = NexxusModelPrimitiveType | 'array' | 'object';
 
 interface BaseFieldDef {
-  type: FieldType;
+  type: NexxusModelFieldType;
   required: boolean;
 }
 
-interface PrimitiveFieldDef extends BaseFieldDef {
-  type: 'string' | 'number' | 'boolean';
+export interface PrimitiveFieldDef extends BaseFieldDef {
+  type: NexxusModelPrimitiveType;
 }
 
-interface ArrayFieldDef extends BaseFieldDef {
+export interface NexxusArrayFieldDef extends BaseFieldDef {
   type: 'array';
-  arrayType: FieldType;
-  properties?: Record<string, FieldDef>;
+  arrayType: NexxusModelPrimitiveType | 'object';
+  properties?: Record<string, NexxusFieldDef>;
 }
 
-interface ObjectFieldDef extends BaseFieldDef {
+export interface NexxusObjectFieldDef extends BaseFieldDef {
   type: 'object';
-  properties: Record<string, FieldDef>;
+  properties: Record<string, NexxusFieldDef>;
 }
 
-type FieldDef = PrimitiveFieldDef | ArrayFieldDef | ObjectFieldDef;
+export type NexxusFieldDef = PrimitiveFieldDef | NexxusArrayFieldDef | NexxusObjectFieldDef;
 
-interface ModelDef {
-  [fieldName: string]: FieldDef;
+export interface NexxusModelDef {
+  [fieldName: string]: NexxusFieldDef;
 }
 
 export interface NexxusApplicationSchema {
-  [modelName: string]: ModelDef;
+  [modelName: string]: NexxusModelDef;
 }
 
 export type NexxusApplicationModelType = INexxusBaseModel & {
