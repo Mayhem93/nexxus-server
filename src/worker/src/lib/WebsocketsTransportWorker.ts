@@ -117,6 +117,14 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
                 client.sendMessage('model_updated', payload.data.data);
 
                 break;
+
+              case 'model_deleted':
+                NexxusWebsocketsTransportWorker.logger.debug(`Sending model_deleted to device ID: "${deviceId}"`, NexxusWebsocketsTransportWorker.loggerLabel);
+
+                client.sendMessage('model_deleted', payload.data.data);
+
+                break;
+
               default:
                 NexxusWebsocketsTransportWorker.logger.warn(`Unknown event "${(payload.data as NexxusBaseQueuePayload).event}"`, NexxusWebsocketsTransportWorker.loggerLabel);
             }

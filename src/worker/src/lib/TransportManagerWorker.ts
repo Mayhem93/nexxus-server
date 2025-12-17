@@ -6,6 +6,7 @@ import {
   NexxusTransportManagerPayload,
   NexxusModelCreatedPayload,
   NexxusModelUpdatedPayload,
+  NexxusModelDeletedPayload,
   NexxusBaseQueuePayload
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
@@ -62,6 +63,13 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
         await this.handleModelUpdated(payload.data);
 
         NexxusTransportManagerWorker.logger.info(`Processing model update with data: ${JSON.stringify(payload.data)}`, NexxusTransportManagerWorker.loggerLabel);
+
+        break;
+
+      case "model_deleted":
+        await this.handleModelDeleted(payload.data);
+
+        NexxusTransportManagerWorker.logger.info(`Processing model delete with data: ${JSON.stringify(payload.data)}`, NexxusTransportManagerWorker.loggerLabel);
 
         break;
       default:
@@ -126,7 +134,6 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     }
 
     for (const [transport, deviceSet] of transportToDeviceMap.entries()) {
-
       this.publish(transport as NexxusQueueName, {
         event: 'device_message',
         deviceIds: Array.from(deviceSet.values()),
@@ -138,6 +145,42 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
 
       NexxusTransportManagerWorker.logger.debug(
         `Notifying ${deviceSet.size} devices about update to model ID: "${data.metadata.id}" via transport: "${transport}"`,
+        NexxusTransportManagerWorker.loggerLabel
+      );
+    }
+  }
+
+  private async handleModelDeleted(data: NexxusModelDeletedPayload['data']): Promise<void> {
+    const devices = await this.getDevicesFromGeneratedChannels({
+      appId: data.appId,
+      userId: undefined, //TODO: fix this when we implement user model
+      model: data.type,
+      modelId: data.id
+    });
+    const transportToDeviceMap: Map<NexxusQueueName, Set<string>> = new Map();
+
+    for (const device of devices) {
+      const [id, transport] = device.split('|');
+
+      if (!transportToDeviceMap.has(transport as NexxusQueueName)) {
+        transportToDeviceMap.set(transport as NexxusQueueName, new Set());
+      }
+
+      transportToDeviceMap.get(transport as NexxusQueueName)!.add(id);
+    }
+
+    for (const [transport, deviceSet] of transportToDeviceMap.entries()) {
+      this.publish(transport as NexxusQueueName, {
+        event: 'device_message',
+        deviceIds: Array.from(deviceSet.values()),
+        data: {
+          event: 'model_deleted',
+          data
+        }
+      });
+
+      NexxusTransportManagerWorker.logger.debug(
+        `Notifying ${deviceSet.size} devices about delete of model ID: "${data.id}" via transport: "${transport}"`,
         NexxusTransportManagerWorker.loggerLabel
       );
     }

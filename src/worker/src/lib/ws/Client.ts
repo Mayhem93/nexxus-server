@@ -6,7 +6,7 @@ import {
 } from "./Exceptions";
 import { NexxusWebsocketsTransportWorker } from "../WebsocketsTransportWorker";
 import { NexxusDevice, RedisKeyNotFoundException } from "@nexxus/redis";
-import { NexxusAppModelType, NexxusJsonPatchType } from "@nexxus/core";
+import { NexxusAppModelType, NexxusJsonPatchType, NexxusModelDeletedData } from "@nexxus/core";
 import { WebSocket, Data as WebSocketData } from "ws";
 
 import { EventEmitter } from "node:events";
@@ -36,6 +36,7 @@ export type NexxusWsServerMessage = {
   };
   model_created: NexxusAppModelType;
   model_updated: NexxusJsonPatchType;
+  model_deleted: NexxusModelDeletedData;
   error: {
     message: string;
     code?: string;

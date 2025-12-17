@@ -57,7 +57,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
     const payload = msg.payload;
 
     switch (payload.event) {
-      case "model_created":
+      case "model_created": {
 
         const appModel = new NexxusAppModel(payload.data);
 
@@ -69,8 +69,8 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
         });
 
         break;
-
-      case 'model_updated':
+      }
+      case 'model_updated': {
 
         const jsonPatch = new NexxusJsonPatch(payload.data);
 
@@ -82,7 +82,19 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
         });
 
         break;
+      }
+      case 'model_deleted': {
+        const appModel = new NexxusAppModel(payload.data);
 
+        await NexxusWriterWorker.database.deleteItems([ appModel ] );
+
+        this.publish('transport-manager', {
+          event: 'model_deleted',
+          data: payload.data,
+        });
+
+        break;
+      }
       default:
         NexxusWriterWorker.logger.warn(`Unknown event type: ${(payload as NexxusBaseQueuePayload).event}`, NexxusWriterWorker.loggerLabel);
     }

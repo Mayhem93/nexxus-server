@@ -81,7 +81,6 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     specs: []
   };
   protected static schemaPath: string = path.join(__dirname, '../../src/schemas/api.schema.json');
-  public static instance?: NexxusApi;
   public static logger : NexxusBaseLogger<any>;
   public static database : NexxusDatabaseAdapter<any, any>;
   public static messageQueue : NexxusMessageQueueAdapter<any, any>;
@@ -164,8 +163,6 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     server.on('listening', () => {
       NexxusApi.logger.info(`API service is listening on port ${this.config.port}`, NexxusApi.loggerLabel);
     });
-
-    NexxusApi.instance = this;
   }
 
   private async loadApps(): Promise<void> {

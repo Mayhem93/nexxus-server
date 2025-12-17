@@ -29,6 +29,7 @@ import type {
 } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 
 import * as path from "node:path";
+import { BulkDeleteOperation } from "@elastic/elasticsearch/lib/api/types";
 
 type ElasticsearchConfig = {
   host: string;
@@ -228,7 +229,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
       const scriptLines = patchData.path.map((path, idx) => {
         switch (patchData.op) {
           case 'replace':
-            return `ctx._source.${path} = params.value${idx};\n`;
+            return `ctx._source.${path} = params.value${idx}`;
           default:
             NexxusElasticsearchDb.logger.warn(`Unsupported JSON Patch operation: ${patchData.op}`, NexxusDatabaseAdapter.loggerLabel);
         }
@@ -236,7 +237,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
 
       const scriptParams = patchData.path.reduce((acc, path, idx) => {
         acc[`value${idx}`] = patchData.value[idx];
-        
+
         return acc;
       }, {} as Record<string, any>);
 
@@ -244,7 +245,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
         { update: { _index: index, _id: patchData.metadata.id } },
         {
           script: {
-            source: scriptLines.join('; '),
+            source: scriptLines.join(';\n'),
             lang: 'painless',
             params: scriptParams
           }
@@ -259,7 +260,26 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     }
   }
 
-  async deleteItems(collection: Array<NexxusBaseModel>, query: any): Promise<void> {
-    // Implementation for deleting items from Elasticsearch
+  async deleteItems(collection: Array<NexxusBaseModel>): Promise<void> {
+    const bulkBody : Array<BulkOperationContainer> = [];
+
+    for (const item of collection) {
+      let index;
+      let itemData;
+
+      if (item instanceof NexxusApplication) {
+        itemData = item.getData();
+        index = `${NEXXUS_PREFIX_LC}-applications`;
+      } else {
+        itemData = (item as NexxusAppModel).getData();
+        index = `${NEXXUS_PREFIX_LC}-app-${itemData.appId}-${itemData.type}`;
+      }
+
+      bulkBody.push(
+        { delete: { _index: index, _id: itemData.id as string } }
+      );
+    }
+
+    await this.client.bulk({ operations: bulkBody });
   }
 }

@@ -29,6 +29,17 @@ interface UpdateAppModelRequest extends NexxusApiRequest {
   }
 }
 
+type DeleteAppModelBody = {
+  type: string;
+}
+
+interface DeleteAppModelRequest extends NexxusApiRequest {
+  body: DeleteAppModelBody;
+  params: {
+    id: string;
+  }
+}
+
 export default class ModelRoute extends NexxusApiBaseRoute {
   constructor(appRouter: Router) {
     super('/model', appRouter);
@@ -42,6 +53,7 @@ export default class ModelRoute extends NexxusApiBaseRoute {
     this.router.post('/', this.createModel.bind(this));
     this.router.get('/:id',  this.getModel.bind(this));
     this.router.put('/:id', this.updateModel.bind(this));
+    this.router.delete('/:id', this.deleteModel.bind(this));
   }
 
   private async getModel(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
@@ -96,5 +108,23 @@ export default class ModelRoute extends NexxusApiBaseRoute {
 
       throw error;
     }
+  }
+
+  private async deleteModel(req: DeleteAppModelRequest, res: NexxusApiResponse): Promise<void> {
+    const appId = req.headers['nxx-app-id'] as string;
+    const appSchema = NexxusApi.getStoredApp(appId)?.getSchema() as NexxusApplicationSchema;
+
+    if (!appSchema[req.body.type]) {
+      throw new ModelNotFoundException(`Model "${req.body.type}" not found in schema for the application "${appId}"`);
+    }
+
+    await NexxusApi.messageQueue.publishMessage('writer', { event: 'model_deleted', data: {
+      appId,
+      id: req.params.id,
+      type: req.body.type,
+      userId: undefined // TODO: Add userId support when user models are implemented
+    }});
+
+    res.status(202).send({ message: 'Model deleted successfully!' });
   }
 }

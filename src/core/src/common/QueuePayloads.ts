@@ -9,14 +9,20 @@ export interface NexxusBaseQueuePayload {
 export type NexxusModelCreatedPayload = { event: 'model_created'; data: NexxusAppModelType; };
 export type NexxusModelUpdatedPayload = { event: 'model_updated'; data: NexxusJsonPatchType; };
 
-// Built-in worker payloads
-export type NexxusWriterPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload;
+export type NexxusModelDeletedData = Pick<NexxusAppModelType, 'id' | 'type' | 'appId' | 'userId'>;
+export type NexxusModelDeletedPayload = { event: 'model_deleted'; data: NexxusModelDeletedData; };
 
-export type NexxusTransportManagerPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload;
+// Built-in worker payloads
+export type NexxusWriterPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload | NexxusModelDeletedPayload;
+
+export type NexxusTransportManagerPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload | NexxusModelDeletedPayload;
 
 // Payload for websocket workers (dynamic instances)
-export type NexxusWebsocketPayload =
-  | { event: 'device_message'; deviceIds: Array<string>; data: NexxusModelCreatedPayload | NexxusModelUpdatedPayload; };
+export type NexxusWebsocketPayload = {
+  event: 'device_message';
+  deviceIds: Array<string>;
+  data: NexxusModelCreatedPayload | NexxusModelUpdatedPayload | NexxusModelDeletedPayload;
+};
 
 export type NexxusMqttPayload =
   | { event: 'mqtt_publish'; topic: string; payload: Buffer; }
