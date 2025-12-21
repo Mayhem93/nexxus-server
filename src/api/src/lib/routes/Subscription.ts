@@ -12,6 +12,11 @@ import {
   DeviceNotConnectedException
 } from '../Exceptions';
 import {
+  InvalidQueryFilterException,
+  NexxusFilterQuery,
+  NexxusFilterQueryType
+} from '@nexxus/core';
+import {
   RedisKeyNotFoundException,
   NexxusRedisSubscription,
   NexxusDevice,
@@ -23,7 +28,7 @@ import { type Router } from 'express';
 type SubscribeRequestBody = {
   model: string;
   userId?: string;
-  filter?: Record<string, any>;
+  filter?: NexxusFilterQueryType;
   getOnly?: boolean;
   limit?: number;
   offset?: number;
@@ -57,10 +62,16 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
 
   private async subscribe(req: SubscribeRequest, res: NexxusApiResponse): Promise<void> {
     const appId = req.headers['nxx-app-id'] as string;
+    const appSchema = NexxusApi.getStoredApp(appId)!.getData().schema;
     const deviceId = req.headers['nxx-device-id'] as string;
+    let filterQuery : NexxusFilterQuery | undefined;
 
     if (!req.body.model || typeof req.body.model !== 'string') {
       throw new InvalidParametersException('Invalid model parameter');
+    }
+
+    if (appSchema[req.body.model] === undefined) {
+      throw new ModelNotFoundException(`Model "${req.body.model}" not found in application "${appId}"`);
     }
 
     if (typeof req.body.userId !== 'string' && req.body.userId !== undefined) {
@@ -83,24 +94,34 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
       }
     }
 
+    if (req.body.filter !== undefined) {
+      if (typeof req.body.filter !== 'object') {
+        throw new InvalidParametersException('Invalid filter parameter');
+      }
+
+      try {
+        filterQuery = new NexxusFilterQuery(req.body.filter, appSchema[req.body.model]);
+      } catch (e) {
+        if (e instanceof InvalidQueryFilterException) {
+          throw new InvalidParametersException(`Invalid filter parameter: ${e.message}`);
+        }
+
+        throw e;
+      }
+    }
+
     if (typeof req.body.getOnly !== 'boolean' && req.body.getOnly !== undefined) {
       throw new InvalidParametersException('Invalid getOnly parameter');
     }
 
     req.body.getOnly = req.body.getOnly || false;
 
-    const app = NexxusApi.getStoredApp(appId);
-
-    if (app!.getData().schema[req.body.model] === undefined) {
-      throw new ModelNotFoundException(`Model "${req.body.model}" not found in application "${appId}"`);
-    }
-
     if (req.body.getOnly === false) {
       const sub = new NexxusRedisSubscription({
         appId,
         model: req.body.model,
         userId: req.body.userId,
-        filter: req.body.filter
+        filter: filterQuery
       });
 
       try {
@@ -119,10 +140,11 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
     }
 
     const results = (await NexxusApi.database.searchItems({
+      appId,
       model: req.body.model,
-      query: {
-        appId
-      }
+      query: filterQuery,
+      limit: req.body.limit,
+      offset: req.body.offset
     })).map(item => item.getData());
 
     res.status(200).send({ results });

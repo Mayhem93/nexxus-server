@@ -14,7 +14,7 @@ export interface INexxusBaseModel extends NexxusGenericModel {
   id?: string;
   createdAt?: number;
   updatedAt?: number;
-  type: ModelTypeName;
+  type: NexxusModelTypeName;
 };
 
 export const MODEL_REGISTRY = {
@@ -24,7 +24,7 @@ export const MODEL_REGISTRY = {
   // user: 'user',
 } as const;
 
-export type ModelTypeName = typeof MODEL_REGISTRY[keyof typeof MODEL_REGISTRY] | string;
+export type NexxusModelTypeName = typeof MODEL_REGISTRY[keyof typeof MODEL_REGISTRY] | string;
 
 // Map model type names to their class types
 export interface ModelTypeMap {

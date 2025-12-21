@@ -2,16 +2,15 @@ import {
   NexxusBaseLogger,
   INexxusBaseServices,
   NexxusBaseService,
-  NexxusConfig
-} from '@nexxus/core';
-import {
+  NexxusConfig,
   NexxusBaseModel,
   NexxusApplication,
   NexxusAppModel,
-  ModelTypeName,
+  NexxusModelTypeName,
   AnyNexxusModel,
-  NexxusJsonPatch
-} from "@nexxus/core";
+  NexxusJsonPatch,
+  NexxusFilterQuery
+} from '@nexxus/core';
 
 export type NexxusDatabaseAdapterEvents = {
   connect: [];
@@ -19,9 +18,10 @@ export type NexxusDatabaseAdapterEvents = {
   error: [Error];
 }
 
-export interface NexxusDbSearchOptions<T extends ModelTypeName | string = string> {
+export interface NexxusDbSearchOptions<T extends NexxusModelTypeName | string = string> {
   model: T;
-  query: Record<string, any>;
+  appId?: string;
+  query?: NexxusFilterQuery;
   limit?: number;
   offset?: number;
 }
@@ -53,4 +53,6 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
   abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<NexxusAppModel[]>;
   abstract updateItems(collection: Array<NexxusJsonPatch>): Promise<void>;
   abstract deleteItems(collection: Array<NexxusBaseModel>): Promise<void>;
+
+  protected abstract buildQuery(filter: NexxusFilterQuery): string | object;
 }

@@ -17,6 +17,8 @@ import {
   NexxusAppModel,
   NexxusAppModelType,
   NexxusJsonPatch,
+  NexxusFilterQuery,
+  NexxusLogicalOperator,
   ConnectionException,
   NEXXUS_PREFIX_LC
 } from "@nexxus/core";
@@ -25,11 +27,12 @@ import * as ElasticSearch from '@elastic/elasticsearch';
 import type {
   BulkOperationBase,
   BulkOperationContainer,
-  BulkUpdateAction
+  BulkUpdateAction,
+  QueryDslQueryContainer,
+  QueryDslBoolQuery
 } from "@elastic/elasticsearch/lib/api/typesWithBodyKey";
 
 import * as path from "node:path";
-import { BulkDeleteOperation } from "@elastic/elasticsearch/lib/api/types";
 
 type ElasticsearchConfig = {
   host: string;
@@ -41,20 +44,6 @@ type ElasticsearchConfig = {
 export type ElasticSearchEvents = NexxusDatabaseAdapterEvents & {
   something: [string];
 }
-
-type ESBulkIndexItemHeader = {
-  index: {
-    _id: string;
-    _index: string;
-  }
-};
-
-type ESBulkUpdateItemHeader = {
-  update: {
-    _id: string;
-    _index: string;
-  }
-};
 
 type ESBulkRequest = {
   body: Array<BulkOperationBase | BulkOperationContainer | INexxusBaseModel>;
@@ -187,16 +176,14 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     } else {
       const modelName = options.model;
 
-      index += `-app-${options.query.appId}-${modelName}`;
+      index += `-app-${options.appId}-${modelName}`;
     }
 
     const searchResults = await this.client.search({
       index: index,
       from: options.offset || 0,
       size: options.limit || 100,
-      query: {
-        match_all: {}
-      }
+      query: this.buildQuery(options.query)
     });
 
     const models: Array<AnyNexxusModel> = searchResults.hits.hits.map(res => {
@@ -281,5 +268,85 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     }
 
     await this.client.bulk({ operations: bulkBody });
+  }
+
+  protected buildQuery(filter: NexxusFilterQuery | undefined): QueryDslQueryContainer {
+    if (filter === undefined) {
+      return { match_all: {} };
+    }
+
+    const root: QueryDslQueryContainer = { bool: { must: [] } };
+    const stack: Array<{ depth: number; boolQuery: any; operator: NexxusLogicalOperator }> = [];
+
+    let currentBool = root.bool as QueryDslBoolQuery;
+    let currentOperator: NexxusLogicalOperator = '$and'; // Root is always AND
+
+    for (const node of filter) {
+      // Handle depth changes (pop stack when going back up)
+      while (stack.length > 0 && stack[stack.length - 1].depth >= node.depth) {
+        stack.pop();
+      }
+
+      // Update current context from stack
+      if (stack.length > 0) {
+        const parent = stack[stack.length - 1];
+
+        currentBool = parent.boolQuery;
+        currentOperator = parent.operator;
+      } else {
+        currentBool = root.bool as QueryDslBoolQuery;
+        currentOperator = '$and';
+      }
+
+      if (node.type === 'logical') {
+        // Create new bool query for logical operator
+        const newBool : QueryDslQueryContainer = { bool: {} };
+
+        if (node.operator === '$or') {
+          newBool!.bool!.should = [];
+          newBool!.bool!.minimum_should_match = 1;
+        } else {
+          newBool!.bool!.must = [];
+        }
+
+        // Add to current parent
+        if (currentOperator === '$or') {
+          (currentBool!.should as QueryDslQueryContainer[]).push(newBool);
+        } else {
+          (currentBool!.must as QueryDslQueryContainer[]).push(newBool);
+        }
+
+        // Push to stack
+        stack.push({ depth: node.depth, boolQuery: newBool.bool, operator: node.operator });
+
+      } else if (node.type === 'field') {
+        // Build field query
+        let fieldQuery: any;
+
+        if (node.operator === 'eq') {
+          fieldQuery = { term: { [node.field]: node.value } };
+        } else if (node.operator === 'in') {
+          fieldQuery = { terms: { [node.field]: node.value } };
+        } else if (node.operator === 'ne') {
+          fieldQuery = { bool: { must_not: { term: { [node.field]: node.value } } } };
+        } else {
+          // Range operators (gte, lte, gt, lt)
+          fieldQuery = { range: { [node.field]: { [node.operator]: node.value } } };
+        }
+
+        // Add to current bool based on parent operator
+        if (currentOperator === '$or') {
+          if (!currentBool.should) currentBool.should = [];
+          (currentBool!.should as QueryDslQueryContainer[]).push(fieldQuery);
+        } else {
+          if (!currentBool.must) currentBool.must = [];
+          (currentBool!.must as QueryDslQueryContainer[]).push(fieldQuery);
+        }
+      }
+    }
+
+    NexxusDatabaseAdapter.logger.debug(`Built Elasticsearch query: ${JSON.stringify(root)}`, NexxusDatabaseAdapter.loggerLabel);
+
+    return root;
   }
 }

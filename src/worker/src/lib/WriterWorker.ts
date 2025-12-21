@@ -101,7 +101,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
   }
 
   private async loadApps(): Promise<void> {
-    const results = await NexxusWriterWorker.database.searchItems({ model: MODEL_REGISTRY.application, query: {} });
+    const results = await NexxusWriterWorker.database.searchItems({ model: MODEL_REGISTRY.application });
 
     for (let app of results) {
       NexxusWriterWorker.loadedApps.set(app.getData().id as string, app);

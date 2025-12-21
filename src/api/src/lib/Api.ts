@@ -166,7 +166,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   }
 
   private async loadApps(): Promise<void> {
-    const results = await NexxusApi.database.searchItems({ model: MODEL_REGISTRY.application, query: {} });
+    const results = await NexxusApi.database.searchItems({ model: MODEL_REGISTRY.application });
 
     for (let app of results) {
       NexxusApi.loadedApps.set(app.getData().id as string, app as NexxusApplication);

@@ -159,7 +159,7 @@ export class NexxusRabbitMq extends NexxusMessageQueueAdapter<RabbitMQConfig, Ne
           metadata
         };
 
-        NexxusRabbitMq.logger.debug(`Received message from RabbitMQ queue ${queueName}: ${queueMessage.payload}`, NexxusRabbitMq.loggerLabel);
+        NexxusRabbitMq.logger.debug(`Received message from RabbitMQ queue ${queueName}: ${msg.content.toString()}`, NexxusRabbitMq.loggerLabel);
 
         await onMessage(queueMessage);
 

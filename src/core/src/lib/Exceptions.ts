@@ -3,7 +3,8 @@ export enum NexxusExceptions {
   BAD_REQUEST = "BadRequestException",
   CONNECTION_ERROR = "ConnectionErrorException",
   INVALID_CONFIG = "InvalidConfigException",
-  INVALID_JSON_PATCH = "InvalidJsonPatchException"
+  INVALID_JSON_PATCH = "InvalidJsonPatchException",
+  INVALID_QUERY_FILTER = "InvalidQueryFilterException"
 };
 
 export class NexxusException extends Error {
@@ -40,5 +41,11 @@ export class InvalidConfigException extends NexxusException {
 export class InvalidJsonPatchException extends NexxusException {
   constructor(message: string) {
     super(NexxusExceptions.INVALID_JSON_PATCH, message);
+  }
+}
+
+export class InvalidQueryFilterException extends NexxusException {
+  constructor(message: string) {
+    super(NexxusExceptions.INVALID_QUERY_FILTER, message);
   }
 }

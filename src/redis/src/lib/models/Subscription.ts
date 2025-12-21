@@ -1,17 +1,20 @@
 import { NexxusRedis } from '../Redis';
-import { NEXXUS_PREFIX_LC } from '@nexxus/core';
+import {
+  NexxusFilterQuery,
+  NexxusFilterQueryType,
+  NEXXUS_PREFIX_LC
+} from '@nexxus/core';
 
 import crypto from 'crypto';
 
 export type NexxusDeviceTransportString = `${string}|${string}`; // deviceId|transport
-export type NexxusChannelFilter = Record<string, any>;
 
 export interface NexxusSubscriptionChannel {
   appId: string;
   model: string;
   modelId?: string;
   userId?: string;
-  filter?: NexxusChannelFilter | null;
+  filter?: NexxusFilterQuery;
 }
 
 export type NexxusBaseSubscriptionChannel = Omit<NexxusSubscriptionChannel, 'filter'>;
@@ -107,7 +110,7 @@ export class NexxusRedisSubscription {
     if (this.filterId && this.channel.filter) {
       const filterKey = this.buildFilterRegistryKey();
 
-      await redis.hSet(filterKey, this.filterId, JSON.stringify(this.channel.filter));
+      await redis.hSet(filterKey, this.filterId, JSON.stringify(this.channel.filter.getNormalizedQuery()));
     }
   }
 
@@ -189,14 +192,13 @@ export class NexxusRedisSubscription {
     return partitionNum.toString(16).toLowerCase();
   }
 
-  private static generateFilterId(filter: NexxusChannelFilter): string {
-    //todo: deep sort
-    const normalized = JSON.stringify(filter, Object.keys(filter).sort());
+  private static generateFilterId(filter: NexxusFilterQuery): string {
+    const normalized = JSON.stringify(filter.getNormalizedQuery());
 
     return crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 16);
   }
 
-  public static async getAllFilters(channel: NexxusSubscriptionChannel): Promise<Record<string, NexxusChannelFilter>> {
+  public static async getAllFilters(channel: NexxusSubscriptionChannel): Promise<Record<string, NexxusFilterQueryType>> {
     const redis = NexxusRedis.instance.getClient();
 
     // Build the filter registry key for this channel
@@ -208,7 +210,7 @@ export class NexxusRedisSubscription {
     return Object.fromEntries(
       Object.entries(filters).map(([filterId, filterJson]) => [
         filterId,
-        JSON.parse(filterJson) as NexxusChannelFilter
+        JSON.parse(filterJson) as NexxusFilterQueryType
       ])
     );
   }

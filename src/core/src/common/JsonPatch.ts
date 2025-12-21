@@ -6,7 +6,12 @@ import {
   NexxusArrayFieldDef,
   NexxusModelPrimitiveType
 } from '../models/Application';
+import {
+  NexxusAppModelType
+} from '../models/AppModel';
 import { InvalidJsonPatchException } from '../lib/Exceptions';
+
+import dot from 'dot-prop';
 
 const JSON_OPS = ['replace'] as const;
 
@@ -53,6 +58,24 @@ export class NexxusJsonPatch {
 
   public get(): NexxusJsonPatchType {
     return this.fullPatch;
+  }
+
+  public getPartialModel(): Partial<NexxusAppModelType> {
+    const partialModel: Partial<NexxusAppModelType> = {
+      id: this.fullPatch.metadata.id,
+      type: this.fullPatch.metadata.type,
+      appId: this.fullPatch.metadata.appId
+    };
+
+    for (let i = 0; i < this.fullPatch.path.length; i++) {
+      const path = this.fullPatch.path[i];
+      const value = this.fullPatch.value[i];
+
+      // Set value at path in partialModel
+      dot.setProperty(partialModel, path, value);
+    }
+
+    return partialModel;
   }
 
   public isValid(): boolean {
