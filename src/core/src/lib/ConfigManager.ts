@@ -158,7 +158,7 @@ export class NexxusConfigManager {
             Defined first by source: "${collectedNames.get(envVar.name)}" and now by source: "${spec.source}"`);
         }
 
-        const value = envResult?.[`${prefix}_${envVar.name}`];
+        const value = envResult?.[`${prefix}${envVar.name}`];
 
         if (value !== undefined) {
           Dot.setProperty(this.data, envVar.location, value);

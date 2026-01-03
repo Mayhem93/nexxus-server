@@ -5,10 +5,12 @@ import { NexxusException } from '@nexxus/core';
 import { Request, Response, NextFunction } from 'express';
 
 export default async (err: NexxusApiException, req: Request, res: Response, next: NextFunction) : Promise<void> => {
-  NexxusApi.logger.error(`Unexpected error: ${err.message}\n${err.stack}`, 'NxxApi');
-
   if (!(err instanceof NexxusException)) {
     err = new ServerErrorException('An unexpected server error occurred.');
+  }
+
+  if (err.statusCode >= 500) {
+    NexxusApi.logger.error(`${err.message}\n${err.stack}`, 'NxxApi');
   }
 
   const statusCode = err.statusCode || 500;

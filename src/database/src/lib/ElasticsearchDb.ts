@@ -16,6 +16,8 @@ import {
   NexxusApplicationModelType,
   NexxusAppModel,
   NexxusAppModelType,
+  NexxusApplicationUser,
+  NexxusUserModelType,
   NexxusJsonPatch,
   NexxusFilterQuery,
   NexxusLogicalOperator,
@@ -146,12 +148,24 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
       let itemData : AnyNexxusModelType;
       let index;
 
-      if (item instanceof NexxusApplication) {
-        itemData = item.getData();
-        index = `${NEXXUS_PREFIX_LC}-applications`;
-      } else {
-        itemData = (item as NexxusAppModel).getData();
-        index = `${NEXXUS_PREFIX_LC}-app-${itemData.appId}-${itemData.type}`;
+      switch (item.constructor) {
+        case NexxusApplication:
+          itemData = item.getData();
+          index = `${NEXXUS_PREFIX_LC}-applications`;
+
+          break;
+        case NexxusApplicationUser:
+          itemData = (item as NexxusApplicationUser).getData();
+          index = `${NEXXUS_PREFIX_LC}-app-${itemData.appId}-users`;
+
+          break;
+        case NexxusAppModel:
+          itemData = (item as NexxusAppModel).getData();
+          index = `${NEXXUS_PREFIX_LC}-app-${itemData.appId}-${itemData.type}`;
+
+          break;
+        default:
+          throw new Error(`ElasticsearchDb.createItems: Unsupported model type: ${(item as NexxusBaseModel).getData().type}`);
       }
 
       await this.createIndexIfNotExists(index);
@@ -166,31 +180,54 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
   }
 
   async searchItems(options: NexxusDbSearchOptions<'application'>): Promise<NexxusApplication[]>;
+  async searchItems(options: NexxusDbSearchOptions<'user'>): Promise<NexxusApplicationUser[]>;
   async searchItems(options: NexxusDbSearchOptions<string>): Promise<NexxusAppModel[]>;
 
   async searchItems(options: NexxusDbSearchOptions<string>): Promise<Array<AnyNexxusModel>> {
     let index = NEXXUS_PREFIX_LC;
 
-    if (options.model === 'application') {
-      index += '-applications';
-    } else {
-      const modelName = options.model;
+    switch (options.type) {
+      case 'application':
+        index += '-applications';
 
-      index += `-app-${options.appId}-${modelName}`;
+        break;
+
+      case 'user':
+        if (!options.appId) {
+          throw new Error("App ID is required for searching user models");
+        }
+
+        index += `-app-${options.appId}-users`;
+
+        break;
+      default:
+        if (!options.appId) {
+          throw new Error("App ID is required for searching app-specific models");
+        }
+
+        const modelName = options.type;
+
+        index += `-app-${options.appId}-${modelName}`;
     }
 
-    const searchResults = await this.client.search({
+    const esSearchRequest: ElasticSearch.estypes.SearchRequest = {
       index: index,
       from: options.offset || 0,
       size: options.limit || 100,
-      query: this.buildQuery(options.query)
-    });
+      query: this.buildQuery(options.filter)
+    };
+
+    NexxusElasticsearchDb.logger.debug(`Executing Elasticsearch search with request: ${JSON.stringify(esSearchRequest)}`, NexxusDatabaseAdapter.loggerLabel);
+
+    const searchResults = await this.client.search(esSearchRequest);
 
     const models: Array<AnyNexxusModel> = searchResults.hits.hits.map(res => {
-      //TODO: update this when implementing the application model class properly
-      switch (options.model) {
+      switch (options.type) {
         case 'application':
           return new NexxusApplication(res._source as NexxusApplicationModelType);
+
+        case 'user':
+          return new NexxusApplicationUser(res._source as NexxusUserModelType);
 
         default:
           return new NexxusAppModel(res._source as NexxusAppModelType);
@@ -270,7 +307,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     await this.client.bulk({ operations: bulkBody });
   }
 
-  protected buildQuery(filter: NexxusFilterQuery | undefined): QueryDslQueryContainer {
+  protected buildQuery(filter?: NexxusFilterQuery): QueryDslQueryContainer {
     if (filter === undefined) {
       return { match_all: {} };
     }
@@ -324,13 +361,13 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
         let fieldQuery: any;
 
         if (node.operator === 'eq') {
-          fieldQuery = { term: { [node.field]: node.value } };
+          fieldQuery = { term: { [`${node.field}.keyword`]: node.value } };
         } else if (node.operator === 'in') {
-          fieldQuery = { terms: { [node.field]: node.value } };
+          fieldQuery = { terms: { [`${node.field}.keyword`]: node.value } };
         } else if (node.operator === 'ne') {
-          fieldQuery = { bool: { must_not: { term: { [node.field]: node.value } } } };
+          fieldQuery = { bool: { must_not: { term: { [`${node.field}.keyword`]: node.value } } } };
         } else {
-          // Range operators (gte, lte, gt, lt)
+          // Range operators (gte, lte, gt, lt) - NO CHANGE HERE
           fieldQuery = { range: { [node.field]: { [node.operator]: node.value } } };
         }
 

@@ -25,6 +25,7 @@
     "@nexxus/database": "file:../database",
     "@nexxus/message_queue": "file:../message_queue",
     "@nexxus/redis": "file:../redis",
+    "dot-prop": "^10.1.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {

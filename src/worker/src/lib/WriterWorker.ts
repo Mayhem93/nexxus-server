@@ -4,10 +4,8 @@ import {
   NexxusConfig,
   NexxusQueueName,
   NexxusWriterPayload,
-  NexxusApplication,
   NexxusAppModel,
   NexxusJsonPatch,
-  MODEL_REGISTRY,
   NexxusBaseQueuePayload
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
@@ -29,8 +27,6 @@ type NexxusWriterWorkerEvents = NexxusBaseWorkerEvents & {
 
 export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfig, NexxusWriterWorkerEvents, NexxusWriterPayload> {
   protected queueName : NexxusQueueName = 'writer';
-  private static readonly loadedApps: Map<string, NexxusApplication> = new Map();
-
   protected static loggerLabel: Readonly<string> = 'NxxWriterWorker';
   protected static cliArgs: ConfigCliArgs = {
     source: this.name,
@@ -44,11 +40,6 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
   constructor(services: NexxusWorkerServices) {
     super(services);
-  }
-
-  public async init() : Promise<void> {
-    await super.init();
-    await this.loadApps();
   }
 
   protected async processMessage(msg: NexxusQueueMessage<NexxusWriterPayload>): Promise<void> {
@@ -73,8 +64,14 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
       case 'model_updated': {
 
         const jsonPatch = new NexxusJsonPatch(payload.data);
+        const updateUpdatedAtPatch = new NexxusJsonPatch({
+          op: 'replace',
+          path: [ 'updatedAt' ],
+          value: [ Math.floor(new Date().getTime() / 1000) ],
+          metadata: jsonPatch.get().metadata
+        });
 
-        await NexxusWriterWorker.database.updateItems( [ jsonPatch ] );
+        await NexxusWriterWorker.database.updateItems( [ jsonPatch, updateUpdatedAtPatch ] );
 
         this.publish('transport-manager', {
           event: 'model_updated',
@@ -98,15 +95,5 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
       default:
         NexxusWriterWorker.logger.warn(`Unknown event type: ${(payload as NexxusBaseQueuePayload).event}`, NexxusWriterWorker.loggerLabel);
     }
-  }
-
-  private async loadApps(): Promise<void> {
-    const results = await NexxusWriterWorker.database.searchItems({ model: MODEL_REGISTRY.application });
-
-    for (let app of results) {
-      NexxusWriterWorker.loadedApps.set(app.getData().id as string, app);
-    }
-
-    NexxusWriterWorker.logger.info(`Loaded ${NexxusWriterWorker.loadedApps.size} applications into Worker service`, NexxusWriterWorker.loggerLabel);
   }
 }

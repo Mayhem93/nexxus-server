@@ -24,22 +24,32 @@ import {
   RootRoute,
   ApplicationRoute,
   DeviceRoute,
+  UserRoute,
   SubscriptionRoute,
   ModelRoute
 } from './routes';
 import {
   NotFoundMiddleware,
   ErrorMiddleware,
-  RequestLoggerMiddleware
+  RequestLoggerMiddleware,
+  RequiredHeadersMiddleware
 } from './middlewares';
 
 import Express from 'express';
 import helmet from 'helmet';
+import passport from 'passport';
 
 import * as path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { IncomingHttpHeaders, Server as HttpServer } from 'node:http';
 import https from 'node:https';
+import {
+  NexxusAuthStrategy,
+  NexxusBaseAuthStrategyConfig,
+  NexxusLocalAuthStrategy,
+  NexxusGoogleAuthStrategy,
+  NexxusAuthProviders
+} from './auth';
 
 export type NexxusApiHeaders = {
   'nxx-app-id'?: Readonly<string>;
@@ -48,9 +58,20 @@ export type NexxusApiHeaders = {
 
 export interface NexxusApiRequest extends Express.Request {
   headers: NexxusApiHeaders & IncomingHttpHeaders;
+  user?: NexxusDecodedApiUser;
+}
+
+export interface NexxusDecodedApiUser {
+  id: string;
+  username: string;
+  iat: number;
+  exp: number;
+  [key: string]: any;
 }
 
 export interface NexxusApiResponse extends Express.Response {}
+
+type NexxusApiAuthConfig = NexxusBaseAuthStrategyConfig;
 
 type NexxusApiConfig = {
   name: string;
@@ -59,6 +80,13 @@ type NexxusApiConfig = {
     sslKeyPath: string;
     sslCertPath: string;
   };
+  auth?: {
+    jwtSecret: string;
+    jwtExpiresIn: string;
+    strategies: {
+      [strategyName: NexxusAuthProviders]: NexxusApiAuthConfig;
+    };
+  }
 } & NexxusConfig;
 
 interface ApiServices extends INexxusBaseServices {
@@ -68,23 +96,32 @@ interface ApiServices extends INexxusBaseServices {
 };
 
 export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
-  private app: Express.Express;
-  private httpsServer?: https.Server;
-  private static readonly loadedApps: Map<string, NexxusApplication> = new Map();
-  private static loggerLabel: Readonly<string> = 'NxxApi';
+  public static logger: NexxusBaseLogger<any>;
+  public static database: NexxusDatabaseAdapter<any, any>;
+  public static messageQueue: NexxusMessageQueueAdapter<any, any>;
+  public static redis: NexxusRedis;
+  public static instance: NexxusApi;
+
   protected static cliArgs: ConfigCliArgs = {
     source: this.name,
     specs: []
   };
   protected static envVars: ConfigEnvVars = {
     source: this.name,
-    specs: []
+    specs: [
+      {
+        name: "AUTH_JWT_SECRET",
+        location: "app.auth.jwtSecret"
+      }
+    ]
   };
   protected static schemaPath: string = path.join(__dirname, '../../src/schemas/api.schema.json');
-  public static logger : NexxusBaseLogger<any>;
-  public static database : NexxusDatabaseAdapter<any, any>;
-  public static messageQueue : NexxusMessageQueueAdapter<any, any>;
-  public static redis : NexxusRedis;
+
+  private express: Express.Express;
+  private httpsServer?: https.Server;
+  private authStrategies: Set<NexxusAuthStrategy> = new Set();
+  private static readonly loadedApps: Map<string, NexxusApplication> = new Map();
+  private static loggerLabel: Readonly<string> = 'NxxApi';
 
   constructor(services: ApiServices) {
     super(services.configManager.getConfig('app') as NexxusApiConfig);
@@ -107,22 +144,24 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     NexxusApi.messageQueue = services.messageQueue;
     NexxusApi.redis = services.redis;
 
-    this.app = Express();
-    this.app.disable("x-powered-by");
+    this.express = Express();
+    this.express.disable("x-powered-by");
 
     if (this.config.ssl !== undefined) {
       this.httpsServer = https.createServer({
         key: readFileSync(this.config.ssl.sslKeyPath),
         cert: readFileSync(this.config.ssl.sslCertPath)
-      }, this.app);
+      }, this.express);
     }
+
+    NexxusApi.instance = this;
   }
 
   public async init(): Promise<void> {
     NexxusApi.logger.info('Initializing API service...', NexxusApi.loggerLabel);
 
-    this.app.use(RequestLoggerMiddleware());
-    this.app.use(helmet({
+    this.express.use(RequestLoggerMiddleware as Express.RequestHandler);
+    this.express.use(helmet({
       xDownloadOptions: false,
       xXssProtection: false,
       xDnsPrefetchControl: false,
@@ -135,29 +174,58 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
         preload: true
       } : false
     }));
-    this.app.use(Express.json());
-    this.app.use(Express.urlencoded({ extended: true }));
+    this.express.use(Express.json());
+    this.express.use(Express.urlencoded({ extended: true }));
 
     await this.loadApps();
 
-    new RootRoute(this.app);
+    new RootRoute(this.express);
 
-    new ApplicationRoute(this.app);
-    new DeviceRoute(this.app);
-    new SubscriptionRoute(this.app);
-    new ModelRoute(this.app);
+    if (this.config.auth !== undefined) {
+      this.express.use(passport.initialize());
 
-    this.app.use(NotFoundMiddleware);
-    this.app.use(ErrorMiddleware);
+      for (const strategyName of Object.keys(this.config.auth.strategies)) {
+        switch (strategyName as NexxusAuthProviders) {
+          case 'local':
+            this.addAuthStrategy(new NexxusLocalAuthStrategy());
 
-    let server : HttpServer | https.Server;
+            break;
+
+          case 'google':
+            this.addAuthStrategy(new NexxusGoogleAuthStrategy());
+
+            break;
+
+          default:
+            NexxusApi.logger.warn(
+              `Unknown auth strategy in config: ${strategyName}`,
+              NexxusApi.loggerLabel
+            );
+
+            break;
+        }
+      }
+
+      this.initializeAuthStrategies();
+    }
+
+    new ApplicationRoute(this.express);
+    new DeviceRoute(this.express);
+    new UserRoute(this.express);
+    new SubscriptionRoute(this.express);
+    new ModelRoute(this.express);
+
+    this.express.use(NotFoundMiddleware);
+    this.express.use(ErrorMiddleware);
+
+    let server: HttpServer | https.Server;
 
     if (this.config.ssl !== undefined && this.httpsServer) {
       server = this.httpsServer;
 
       this.httpsServer.listen(this.config.port);
     } else {
-      server = this.app.listen(this.config.port);
+      server = this.express.listen(this.config.port);
     }
 
     server.on('listening', () => {
@@ -165,8 +233,86 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     });
   }
 
+  public getConfig(): NexxusApiConfig {
+    return this.config;
+  }
+
+  public hasAuthStrategy(strategyName: NexxusAuthProviders): boolean {
+    return Array.from(this.authStrategies).some(strategy => strategy.name === strategyName);
+  }
+
+  public getAuthProviderConfig<T extends NexxusApiAuthConfig = NexxusApiAuthConfig>(strategyName: NexxusAuthProviders): T {
+    const config = this.config.auth?.strategies[strategyName] as T | undefined;
+
+    if (!config) {
+      throw new FatalErrorException(`Auth strategy config not found for strategy: ${strategyName}`);
+    }
+
+    return config;
+  }
+
+  public getAllAuthConfigs(): { [strategyName: NexxusAuthProviders]: NexxusApiAuthConfig } | undefined {
+    return this.config.auth?.strategies;
+  }
+
+  // public getAuthConfig() :
+
+  private addAuthStrategy(strategy: NexxusAuthStrategy): void {
+    if (!(strategy instanceof NexxusAuthStrategy)) {
+      throw new FatalErrorException(`Auth strategy is not an instance of NexxusAuthStrategy`);
+    }
+
+    if (this.authStrategies.has(strategy)) {
+      NexxusApi.logger.warn(
+        `Auth strategy already added: ${strategy.name}`,
+        NexxusApi.loggerLabel
+        );
+
+        return ;
+    }
+
+    this.authStrategies.add(strategy);
+  }
+
+  public getAuthStrategy(strategyName: NexxusAuthProviders): NexxusAuthStrategy {
+    const strategy = Array.from(this.authStrategies).find(s => s.name === strategyName);
+
+    if (!strategy) {
+      throw new FatalErrorException(`Auth strategy not found: ${strategyName}`);
+    }
+
+    return strategy;
+  }
+
+  private initializeAuthStrategies(): void {
+    for (const strategy of this.authStrategies) {
+      // Initialize the Passport strategy
+      strategy.initializePassport();
+
+      // Register auth route: /auth/{strategy-name}
+      this.express.post(
+        `/auth/${strategy.name}`,
+        RequiredHeadersMiddleware('nxx-app-id') as Express.RequestHandler,
+        RequiredHeadersMiddleware('nxx-device-id') as Express.RequestHandler,
+        strategy.handleAuth.bind(strategy)
+      );
+
+      // Register callback route if strategy requires it
+      if (strategy.requiresCallback) {
+        this.express.get(`/auth/${strategy.name}/callback`, (req, res) => {
+          strategy.handleCallback(req, res);
+        });
+      }
+
+      NexxusApi.logger.debug(
+        `Registered auth strategy: ${strategy.name}`,
+        NexxusApi.loggerLabel
+      );
+    }
+  }
+
   private async loadApps(): Promise<void> {
-    const results = await NexxusApi.database.searchItems({ model: MODEL_REGISTRY.application });
+    const results = await NexxusApi.database.searchItems({ type: MODEL_REGISTRY.application });
 
     for (let app of results) {
       NexxusApi.loadedApps.set(app.getData().id as string, app as NexxusApplication);

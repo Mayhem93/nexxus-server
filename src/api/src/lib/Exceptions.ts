@@ -6,7 +6,11 @@ enum ApiExceptions {
   SERVER_ERROR = "ServerErrorException",
   APPLICATION_NOT_FOUND = "ApplicationNotFoundException",
   MODEL_NOT_FOUND = "ModelNotFoundException",
-  DEVICE_NOT_CONNECTED = "DeviceNotConnectedException"
+  DEVICE_NOT_CONNECTED = "DeviceNotConnectedException",
+  INVALID_AUTH_METHOD = "InvalidAuthMethodException",
+  NO_AUTH_PRESENT = "NoAuthPresentException",
+  USER_AUTH_FAILED = "UserAuthenticationFailedException",
+  USER_ALREADY_EXISTS = "UserAlreadyExistsException"
 };
 
 export abstract class NexxusApiException extends NexxusException {
@@ -63,3 +67,36 @@ export class DeviceNotConnectedException extends NexxusApiException {
     super(ApiExceptions.DEVICE_NOT_CONNECTED, message);
   }
 }
+
+export class InvalidAuthMethodException extends NexxusApiException {
+  public readonly statusCode = 400;
+
+  constructor(message: string) {
+    super(ApiExceptions.INVALID_AUTH_METHOD, message);
+  }
+}
+
+export class UserAuthenticationFailedException extends NexxusApiException {
+  public readonly statusCode = 401;
+
+  constructor(message: string) {
+    super(ApiExceptions.USER_AUTH_FAILED, message);
+  }
+}
+
+export class NoAuthPresentException extends NexxusApiException {
+  public readonly statusCode = 401;
+
+  constructor(message: string) {
+    super(ApiExceptions.NO_AUTH_PRESENT, message);
+  }
+}
+
+export class UserAlreadyExistsException extends NexxusApiException {
+  public readonly statusCode = 409;
+
+  constructor(message: string) {
+    super(ApiExceptions.USER_ALREADY_EXISTS, message);
+  }
+}
+

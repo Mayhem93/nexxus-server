@@ -1,4 +1,5 @@
 import { NexxusApplication, NexxusApplicationModelType } from "./Application";
+import { NexxusApplicationUser, NexxusUserModelType } from "./User";
 import { NexxusAppModel, NexxusAppModelType } from "./AppModel";
 
 import { randomUUID } from "node:crypto"
@@ -7,8 +8,8 @@ interface NexxusGenericModel {
   [key: string]: any | NexxusGenericModel;
 };
 
-export type AnyNexxusModel = NexxusApplication | NexxusAppModel; // Extend this union as more built-in models are added
-export type AnyNexxusModelType = NexxusApplicationModelType | NexxusAppModelType; // Extend this union as more built-in models are added
+export type AnyNexxusModel = NexxusApplication | NexxusApplicationUser | NexxusAppModel; // Extend this union as more built-in models are added
+export type AnyNexxusModelType = NexxusApplicationModelType | NexxusUserModelType | NexxusAppModelType; // Extend this union as more built-in models are added
 
 export interface INexxusBaseModel extends NexxusGenericModel {
   id?: string;
@@ -19,9 +20,7 @@ export interface INexxusBaseModel extends NexxusGenericModel {
 
 export const MODEL_REGISTRY = {
   application: 'application',
-  // Add other built-in models here as you create them
-  // device: 'device',
-  // user: 'user',
+  user: 'user'
 } as const;
 
 export type NexxusModelTypeName = typeof MODEL_REGISTRY[keyof typeof MODEL_REGISTRY] | string;
@@ -29,6 +28,7 @@ export type NexxusModelTypeName = typeof MODEL_REGISTRY[keyof typeof MODEL_REGIS
 // Map model type names to their class types
 export interface ModelTypeMap {
   application: NexxusApplication;
+  user: NexxusApplicationUser;
   // Add mappings for other built-in models
   // device: NexxusDevice;
 }

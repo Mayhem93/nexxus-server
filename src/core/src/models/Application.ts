@@ -3,35 +3,10 @@ import {
   INexxusBaseModel,
   MODEL_REGISTRY
 } from "./BaseModel";
+import { NexxusModelDef } from "../common/ModelTypes";
+import { NexxusUserDetailSchema } from "./User";
 
-export type NexxusModelPrimitiveType = 'string' | 'number' | 'boolean' | 'date';
-export type NexxusModelFieldType = NexxusModelPrimitiveType | 'array' | 'object';
-
-interface BaseFieldDef {
-  type: NexxusModelFieldType;
-  required: boolean;
-}
-
-export interface PrimitiveFieldDef extends BaseFieldDef {
-  type: NexxusModelPrimitiveType;
-}
-
-export interface NexxusArrayFieldDef extends BaseFieldDef {
-  type: 'array';
-  arrayType: NexxusModelPrimitiveType | 'object';
-  properties?: Record<string, NexxusFieldDef>;
-}
-
-export interface NexxusObjectFieldDef extends BaseFieldDef {
-  type: 'object';
-  properties: Record<string, NexxusFieldDef>;
-}
-
-export type NexxusFieldDef = PrimitiveFieldDef | NexxusArrayFieldDef | NexxusObjectFieldDef;
-
-export interface NexxusModelDef {
-  [fieldName: string]: NexxusFieldDef;
-}
+import * as Dot from 'dot-prop';
 
 export interface NexxusApplicationSchema {
   [modelName: string]: NexxusModelDef;
@@ -41,6 +16,8 @@ export type NexxusApplicationModelType = INexxusBaseModel & {
   name: string;
   description?: string;
   schema: NexxusApplicationSchema;
+  authEnabled: boolean;
+  userSchema?: NexxusUserDetailSchema;
 };
 
 export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelType> {
@@ -51,11 +28,23 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
       throw new Error("Application schema cannot be empty");
     }
 
+    if (data.authEnabled === undefined || typeof data.authEnabled !== 'boolean') {
+      throw new Error("Application 'authEnabled' is required and must be a boolean");
+    } else if (data.authEnabled && (!data.userSchema || typeof data.userSchema !== 'object')) {
+      throw new Error("Application 'userSchema' must be provided when 'authEnabled' is true");
+    }
+
     //TODO: actually use json schema validation for schema structure
   }
 
   public getSchema(): NexxusApplicationSchema {
     return this.getData().schema;
+  }
+
+  public getAppModelFieldType(appId: string, modelType: string, fieldPath: string): string | undefined {
+    const appModelFieldType = Dot.getProperty(this.getSchema(), `${modelType}.${fieldPath}.type`);
+
+    return appModelFieldType as string | undefined;
   }
 
   async save(): Promise<void> {

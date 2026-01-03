@@ -1,26 +1,15 @@
 import { NexxusApiBaseRoute } from '../BaseRoute';
-import { RequiredHeadersMiddleware, AppExistsMiddleware } from '../middlewares';
 import {
   type NexxusApiRequest,
   type NexxusApiResponse,
   NexxusApi
 } from '../Api';
 import {
-  InvalidParametersException,
-  NotFoundException,
-  ModelNotFoundException
-} from '../Exceptions';
-import {
   type NexxusApplicationModelType,
   NexxusApplication
 } from '@nexxus/core';
-import {
-  RedisKeyNotFoundException,
-  NexxusRedisSubscription,
-  NexxusDevice
-} from '@nexxus/redis';
 
-import { type Router } from 'express';
+import type { Router, RequestHandler } from 'express';
 
 interface CreateApplicationRequest extends NexxusApiRequest {
   body: Pick<NexxusApplicationModelType, "name" | "description" | "schema">;
@@ -33,8 +22,8 @@ export default class ApplicationRoute extends NexxusApiBaseRoute {
 
   protected registerRoutes(): void {
     /* this.router.post('/', this.createApp.bind(this)); */
-    this.router.get('/:appId',  this.getApp.bind(this));
-    this.router.put('/:appId', this.updateApp.bind(this));
+    this.router.get('/:appId',  this.getApp.bind(this) as RequestHandler);
+    this.router.put('/:appId', this.updateApp.bind(this) as RequestHandler);
   }
 
   private async getApp(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {

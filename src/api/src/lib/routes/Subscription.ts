@@ -1,5 +1,9 @@
 import { NexxusApiBaseRoute } from '../BaseRoute';
-import { RequiredHeadersMiddleware, AppExistsMiddleware } from '../middlewares';
+import {
+  RequiredHeadersMiddleware,
+  AppExistsMiddleware,
+  AuthMiddleware
+} from '../middlewares';
 import {
   type NexxusApiRequest,
   type NexxusApiResponse,
@@ -23,7 +27,7 @@ import {
   RedisDeviceNotConnectedException
 } from '@nexxus/redis';
 
-import { type Router } from 'express';
+import type { Router, RequestHandler } from 'express';
 
 type SubscribeRequestBody = {
   model: string;
@@ -47,17 +51,18 @@ interface UnsubscribeRequest extends NexxusApiRequest {
 export default class SubscriptionRoute extends NexxusApiBaseRoute {
   constructor(appRouter: Router) {
     super('/subscription', appRouter);
-
-    this.router.use(
-      RequiredHeadersMiddleware('nxx-app-id'),
-      RequiredHeadersMiddleware('nxx-device-id'),
-      AppExistsMiddleware()
-    );
   }
 
   protected registerRoutes(): void {
-    this.router.post('/', this.subscribe.bind(this));
-    this.router.delete('/', this.unsubscribe.bind(this));
+    this.router.use(
+      RequiredHeadersMiddleware('nxx-app-id') as RequestHandler,
+      RequiredHeadersMiddleware('nxx-device-id') as RequestHandler,
+      AppExistsMiddleware() as RequestHandler,
+      AuthMiddleware as RequestHandler
+    );
+
+    this.router.post('/', this.subscribe.bind(this) as RequestHandler);
+    this.router.delete('/', this.unsubscribe.bind(this) as RequestHandler);
   }
 
   private async subscribe(req: SubscribeRequest, res: NexxusApiResponse): Promise<void> {
@@ -100,7 +105,7 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
       }
 
       try {
-        filterQuery = new NexxusFilterQuery(req.body.filter, appSchema[req.body.model]);
+        filterQuery = new NexxusFilterQuery(req.body.filter, { appModelDef: appSchema[req.body.model] });
       } catch (e) {
         if (e instanceof InvalidQueryFilterException) {
           throw new InvalidParametersException(`Invalid filter parameter: ${e.message}`);
@@ -141,8 +146,8 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
 
     const results = (await NexxusApi.database.searchItems({
       appId,
-      model: req.body.model,
-      query: filterQuery,
+      type: req.body.model,
+      filter: filterQuery,
       limit: req.body.limit,
       offset: req.body.offset
     })).map(item => item.getData());

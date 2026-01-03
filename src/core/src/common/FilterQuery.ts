@@ -6,7 +6,12 @@ import type {
   NexxusArrayFieldDef,
   NexxusFieldDef,
   NexxusModelDef
-} from '../models/Application';
+} from '../common/ModelTypes';
+import {
+  NEXXUS_UNIVERSAL_FIELDS,
+  NEXXUS_BUILTIN_MODEL_SCHEMAS,
+  type NexxusBuiltinModelType
+} from './BuiltinSchemas';
 import type {
   NexxusAppModelType
 } from '../models/AppModel';
@@ -49,13 +54,29 @@ type FilterNodeWithContext = FilterNode & {
   parentOperator?: NexxusLogicalOperator;
 };
 
+export type NexxusFilterQueryConfig =
+  | { appModelDef: NexxusModelDef }  // For app-defined models
+  | { modelType: NexxusBuiltinModelType }; // For built-in models (user, application)
+
 export class NexxusFilterQuery {
   private nodes: FilterNode[] = [];
+  private modelDef: NexxusModelDef;
 
   constructor(
     private query: NexxusFilterQueryType,
-    private modelDef: NexxusModelDef
+    config: NexxusFilterQueryConfig
   ) {
+    // Determine which schema to use and merge with universal fields
+    if ('appModelDef' in config) {
+      // Merge universal fields + app model fields
+      this.modelDef = { ...NEXXUS_UNIVERSAL_FIELDS, ...config.appModelDef };
+    } else {
+      // Merge universal fields + built-in model schema
+      const builtinSchema = NEXXUS_BUILTIN_MODEL_SCHEMAS[config.modelType];
+      
+      this.modelDef = { ...NEXXUS_UNIVERSAL_FIELDS, ...builtinSchema };
+    }
+
     this.validateAndParse();
   }
 
@@ -87,45 +108,6 @@ export class NexxusFilterQuery {
     } else { // '$or'
       // At least one condition must match
       return node.conditions.some(childNode => this.testNode(childNode, object));
-    }
-  }
-
-  private testFieldCondition(
-    node: FilterNode & { type: 'field' },
-    object: Partial<NexxusAppModelType>
-  ): boolean {
-    const actualValue = dot.getProperty(object, node.field);
-
-    if (actualValue === undefined) {
-      return false;
-    }
-
-    switch (node.operator) {
-      case 'eq':
-        return actualValue === node.value;
-
-      case 'ne':
-        return actualValue !== node.value;
-
-      case 'gt':
-        return typeof actualValue === 'number' && actualValue > (node.value as number);
-
-      case 'gte':
-        return typeof actualValue === 'number' && actualValue >= (node.value as number);
-
-      case 'lt':
-        return typeof actualValue === 'number' && actualValue < (node.value as number);
-
-      case 'lte':
-        return typeof actualValue === 'number' && actualValue <= (node.value as number);
-
-      case 'in':
-        const values = node.value as NexxusFieldValue[];
-
-        return values.some(v => actualValue === v);
-
-      default:
-        return false;
     }
   }
 
@@ -168,6 +150,45 @@ export class NexxusFilterQuery {
     }
 
     return nodes;
+  }
+
+  private testFieldCondition(
+    node: FilterNode & { type: 'field' },
+    object: Partial<NexxusAppModelType>
+  ): boolean {
+    const actualValue = dot.getProperty(object, node.field);
+
+    if (actualValue === undefined) {
+      return false;
+    }
+
+    switch (node.operator) {
+      case 'eq':
+        return actualValue === node.value;
+
+      case 'ne':
+        return actualValue !== node.value;
+
+      case 'gt':
+        return typeof actualValue === 'number' && actualValue > (node.value as number);
+
+      case 'gte':
+        return typeof actualValue === 'number' && actualValue >= (node.value as number);
+
+      case 'lt':
+        return typeof actualValue === 'number' && actualValue < (node.value as number);
+
+      case 'lte':
+        return typeof actualValue === 'number' && actualValue <= (node.value as number);
+
+      case 'in':
+        const values = node.value as NexxusFieldValue[];
+
+        return values.some(v => actualValue === v);
+
+      default:
+        return false;
+    }
   }
 
   private parseFieldCondition(

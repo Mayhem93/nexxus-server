@@ -2,7 +2,7 @@ import { NexxusApiRequest, NexxusApi } from "../Api";
 
 import { type NextFunction, type Response } from "express";
 
-export default () => (req: NexxusApiRequest, res: Response, next: NextFunction) => {
+export default (req: NexxusApiRequest, res: Response, next: NextFunction) => {
   const startTime = Date.now();
 
   res.on('finish', () => {

@@ -1,19 +1,29 @@
 import {
-  NexxusApplicationSchema,
+  NexxusApplicationSchema
+} from '../models/Application';
+import type {
   NexxusFieldDef,
   NexxusModelDef,
   NexxusObjectFieldDef,
   NexxusArrayFieldDef,
   NexxusModelPrimitiveType
-} from '../models/Application';
+} from '../common/ModelTypes';
 import {
-  NexxusAppModelType
-} from '../models/AppModel';
+  isBuiltinModel,
+  NexxusBuiltinModelType,
+  NEXXUS_BUILTIN_MODEL_SCHEMAS,
+  NEXXUS_UNIVERSAL_FIELDS
+} from './BuiltinSchemas';
+import { NexxusAppModelType } from '../models/AppModel';
 import { InvalidJsonPatchException } from '../lib/Exceptions';
 
 import dot from 'dot-prop';
 
-const JSON_OPS = ['replace'] as const;
+const JSON_OPS = [
+  'replace',
+  'append',
+  'prepend'
+] as const;
 
 export type NexxusJsonPatchType = {
   op: typeof JSON_OPS[number],
@@ -27,6 +37,10 @@ export type NexxusJsonPatchMetadata = {
   id: string;
   type: string;
 };
+
+export type NexxusJsonPatchValidationConfig =
+  | { appSchema: NexxusApplicationSchema }  // For app-defined models
+  | { modelType: NexxusBuiltinModelType }; // For built-in models (user, application)
 
 export class NexxusJsonPatch {
   private valid: boolean = false;
@@ -82,11 +96,36 @@ export class NexxusJsonPatch {
     return this.valid;
   }
 
-  public validate(appSchema: NexxusApplicationSchema): void {
-    const modelSpec = appSchema[this.fullPatch.metadata.type];
+  public validate(config: NexxusJsonPatchValidationConfig): void {
+    const modelType = this.fullPatch.metadata.type;
+    let modelSpec: NexxusModelDef;
 
-    if (!modelSpec) {
-      throw new InvalidJsonPatchException(`Model type ${this.fullPatch.metadata.type} not found in application schema`);
+    // Determine which schema to use
+    if (isBuiltinModel(modelType)) {
+      // Built-in model: only include updatedAt from universal fields + built-in schema
+      const builtinSchema = NEXXUS_BUILTIN_MODEL_SCHEMAS[modelType as NexxusBuiltinModelType];
+      modelSpec = {
+        updatedAt: NEXXUS_UNIVERSAL_FIELDS.updatedAt,
+        ...builtinSchema
+      };
+    } else {
+      // App-defined model: get from app schema and add updatedAt
+      if (!('appSchema' in config)) {
+        throw new InvalidJsonPatchException(
+          `Model type "${modelType}" is not built-in, but no app schema provided`
+        );
+      }
+
+      const appModelSpec = config.appSchema[modelType];
+
+      if (!appModelSpec) {
+        throw new InvalidJsonPatchException(`Model type "${modelType}" not found in application schema`);
+      }
+
+      modelSpec = {
+        updatedAt: NEXXUS_UNIVERSAL_FIELDS.updatedAt,
+        ...appModelSpec
+      };
     }
 
     // Validate each path/value pair
@@ -101,6 +140,15 @@ export class NexxusJsonPatch {
         throw new InvalidJsonPatchException(
           `Path "${currentPath}" does not exist in model "${this.fullPatch.metadata.type}"`
         );
+      }
+
+      // For append/prepend operations, ensure field is array or string
+      if (this.fullPatch.op === 'append' || this.fullPatch.op === 'prepend') {
+        if (fieldDef.type !== 'array' && fieldDef.type !== 'string') {
+          throw new InvalidJsonPatchException(
+            `Cannot ${this.fullPatch.op} to path "${currentPath}" - must be array or string type`
+          );
+        }
       }
 
       // Recursively validate value matches field type
@@ -225,7 +273,7 @@ export class NexxusJsonPatch {
    */
   private static validateDate(value: any, path: string): boolean {
     const isValid = value instanceof Date ||
-      (typeof value === 'string' && !isNaN(Date.parse(value)));
+      (typeof value === 'string' && !isNaN(Date.parse(value)) || typeof value === 'number' && !isNaN(new Date(value).getTime()));
 
     if (!isValid) {
       throw new InvalidJsonPatchException(`Value at path "${path}" must be a valid date`);
@@ -246,7 +294,7 @@ export class NexxusJsonPatch {
       throw new InvalidJsonPatchException(`Value at path "${path}" must be an object`);
     }
 
-    // Recursively validate each property
+    // Validate each property based on fieldDef properties
     for (const key in value) {
       const nestedFieldDef = fieldDef.properties[key];
 
@@ -310,6 +358,9 @@ export class NexxusJsonPatch {
         return this.validateBoolean(value, path);
       case 'date':
         return this.validateDate(value, path);
+
+      default:
+        throw new InvalidJsonPatchException(`Unknown primitive type "${type}" at path "${path}"`);
     }
   }
 }

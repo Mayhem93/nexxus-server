@@ -9,8 +9,6 @@ import {
   NexxusModelDeletedPayload,
   NexxusBaseQueuePayload,
   NexxusFilterQuery,
-  NexxusApplication,
-  MODEL_REGISTRY,
   NexxusAppModelType,
   NexxusJsonPatch
 } from '@nexxus/core';
@@ -38,7 +36,6 @@ type NexxusTransportManagerWorkerEvents = NexxusBaseWorkerEvents & {
 }
 
 export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTransportManagerWorkerConfig, NexxusTransportManagerWorkerEvents, NexxusTransportManagerPayload> {
-  private static readonly loadedApps: Map<string, NexxusApplication> = new Map();
   protected queueName : NexxusQueueName = "transport-manager";
   protected static loggerLabel: Readonly<string> = "NxxTransportManagerWorker";
   protected static cliArgs: ConfigCliArgs = {
@@ -53,11 +50,6 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
 
   constructor(services: NexxusWorkerServices) {
     super(services);
-  }
-
-  public async init() : Promise<void> {
-    await super.init();
-    await this.loadApps();
   }
 
   protected async processMessage(msg: NexxusQueueMessage<NexxusTransportManagerPayload>): Promise<void> {
@@ -232,7 +224,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
 
         // Step 3: For each filter, get devices from filtered subscription
         for (const [filterId, filterQuery] of Object.entries(filters)) {
-          const filter = new NexxusFilterQuery(filterQuery, appSchema[channel.model]);
+          const filter = new NexxusFilterQuery(filterQuery, { appModelDef: appSchema[channel.model] });
           let objectChange : Partial<NexxusAppModelType>;
 
           if (change instanceof NexxusJsonPatch) { //update via JsonPatch
@@ -262,15 +254,5 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     );
 
     return allDevices;
-  }
-
-  private async loadApps(): Promise<void> {
-    const results = await NexxusTransportManagerWorker.database.searchItems({ model: MODEL_REGISTRY.application });
-
-    for (let app of results) {
-      NexxusTransportManagerWorker.loadedApps.set(app.getData().id as string, app);
-    }
-
-    NexxusTransportManagerWorker.logger.info(`Loaded ${NexxusTransportManagerWorker.loadedApps.size} applications into Worker service`, NexxusTransportManagerWorker.loggerLabel);
   }
 }

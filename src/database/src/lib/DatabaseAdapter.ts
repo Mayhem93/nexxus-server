@@ -5,6 +5,7 @@ import {
   NexxusConfig,
   NexxusBaseModel,
   NexxusApplication,
+  NexxusApplicationUser,
   NexxusAppModel,
   NexxusModelTypeName,
   AnyNexxusModel,
@@ -19,9 +20,9 @@ export type NexxusDatabaseAdapterEvents = {
 }
 
 export interface NexxusDbSearchOptions<T extends NexxusModelTypeName | string = string> {
-  model: T;
+  type: T;
   appId?: string;
-  query?: NexxusFilterQuery;
+  filter?: NexxusFilterQuery;
   limit?: number;
   offset?: number;
 }
@@ -50,6 +51,7 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
   abstract createItems(collection: Array<AnyNexxusModel>): Promise<void>;
   abstract getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>>;
   abstract searchItems(options: NexxusDbSearchOptions<'application'>): Promise<NexxusApplication[]>;
+  abstract searchItems(options: NexxusDbSearchOptions<'user'>): Promise<NexxusApplicationUser[]>;
   abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<NexxusAppModel[]>;
   abstract updateItems(collection: Array<NexxusJsonPatch>): Promise<void>;
   abstract deleteItems(collection: Array<NexxusBaseModel>): Promise<void>;

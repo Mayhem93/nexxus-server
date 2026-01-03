@@ -1,4 +1,5 @@
 {
+  "$id": "nexxus-api",
   "$comment": "app",
   "type": "object",
   "properties": {
@@ -19,6 +20,51 @@
         }
       },
       "required": [ "sslKeyPath", "sslCertPath" ]
+    },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "jwtSecret": {
+          "type": "string"
+        },
+        "jwtExpiresIn": {
+          "type": "string"
+        },
+        "strategies": {
+          "type": "object",
+          "properties": {
+            "local": {
+              "$ref": "#/definitions/LocalAuthStrategyConf"
+            },
+            "google": {
+              "$ref": "#/definitions/GoogleAuthStrategyConf"
+            }
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [ "jwtSecret", "strategies" ]
+    }
+  },
+  "definitions": {
+    "LocalAuthStrategyConf": {
+      "type": "object",
+      "properties": {}
+    },
+    "GoogleAuthStrategyConf": {
+      "type": "object",
+      "properties": {
+        "clientID": {
+          "type": "string"
+        },
+        "clientSecret": {
+          "type": "string"
+        },
+        "callbackURL": {
+          "type": "string"
+        }
+      },
+      "required": [ "clientID", "clientSecret", "callbackURL" ]
     }
   },
   "required": [

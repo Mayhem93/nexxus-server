@@ -8,7 +8,7 @@ import {
 import { RequiredHeadersMiddleware } from '../middlewares';
 import { InvalidParametersException, NotFoundException } from '../Exceptions';
 
-import { type Router } from 'express';
+import type { Router, RequestHandler } from 'express';
 
 import { randomUUID } from 'node:crypto';
 
@@ -24,12 +24,12 @@ export default class DeviceRoute extends NexxusApiBaseRoute {
   }
 
   protected registerRoutes(): void {
-    this.router.use(RequiredHeadersMiddleware('nxx-app-id'));
+    this.router.use(RequiredHeadersMiddleware('nxx-app-id') as RequestHandler);
 
-    this.router.post('/register', this.registerDevice.bind(this));
+    this.router.post('/register', this.registerDevice.bind(this) as RequestHandler);
     this.router.get('/',
-      RequiredHeadersMiddleware('nxx-device-id'),
-      this.getDevice.bind(this)
+      RequiredHeadersMiddleware('nxx-device-id') as RequestHandler,
+      this.getDevice.bind(this) as RequestHandler
     );
   }
 

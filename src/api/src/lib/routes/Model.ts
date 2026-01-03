@@ -1,7 +1,7 @@
 import { InvalidParametersException, ModelNotFoundException } from '../Exceptions';
 import { NexxusApiBaseRoute } from '../BaseRoute';
 import { type NexxusApiRequest, type NexxusApiResponse, NexxusApi } from '../Api';
-import { RequiredHeadersMiddleware, AppExistsMiddleware } from '../middlewares';
+import { RequiredHeadersMiddleware, AppExistsMiddleware, AuthMiddleware } from '../middlewares';
 import {
   NexxusAppModel,
   NexxusJsonPatch,
@@ -11,7 +11,7 @@ import {
   NexxusJsonPatchType
 } from '@nexxus/core';
 
-import { type Router } from 'express';
+import type { Router, RequestHandler } from 'express';
 
 interface CreateAppModelRequest extends NexxusApiRequest {
   body: NexxusAppModelType;
@@ -43,17 +43,18 @@ interface DeleteAppModelRequest extends NexxusApiRequest {
 export default class ModelRoute extends NexxusApiBaseRoute {
   constructor(appRouter: Router) {
     super('/model', appRouter);
-
-    this.router.use(RequiredHeadersMiddleware('nxx-app-id'));
-    this.router.use(RequiredHeadersMiddleware('nxx-device-id'));
-    this.router.use(AppExistsMiddleware());
   }
 
   protected registerRoutes(): void {
-    this.router.post('/', this.createModel.bind(this));
-    this.router.get('/:id',  this.getModel.bind(this));
-    this.router.put('/:id', this.updateModel.bind(this));
-    this.router.delete('/:id', this.deleteModel.bind(this));
+    this.router.use(RequiredHeadersMiddleware('nxx-app-id') as RequestHandler);
+    this.router.use(RequiredHeadersMiddleware('nxx-device-id') as RequestHandler);
+    this.router.use(AppExistsMiddleware() as RequestHandler);
+    this.router.use(AuthMiddleware as RequestHandler);
+
+    this.router.post('/', this.createModel.bind(this) as RequestHandler);
+    this.router.get('/:id', this.getModel.bind(this) as RequestHandler);
+    this.router.put('/:id', this.updateModel.bind(this) as RequestHandler<UpdateAppModelRequest['params']>);
+    this.router.delete('/:id', this.deleteModel.bind(this) as RequestHandler<DeleteAppModelRequest['params']>);
   }
 
   private async getModel(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
@@ -70,7 +71,8 @@ export default class ModelRoute extends NexxusApiBaseRoute {
 
     const newModel = new NexxusAppModel({
       ...req.body,
-      appId: appId
+      appId: appId,
+      userId: req.user?.id
     });
 
     await NexxusApi.messageQueue.publishMessage('writer', { event: 'model_created', data: newModel.getData() });
@@ -96,7 +98,7 @@ export default class ModelRoute extends NexxusApiBaseRoute {
         }
       });
 
-      jsonPatch.validate(appSchema);
+      jsonPatch.validate({ appSchema});
 
       await NexxusApi.messageQueue.publishMessage('writer', { event: 'model_updated', data: jsonPatch.get() });
 
@@ -122,7 +124,7 @@ export default class ModelRoute extends NexxusApiBaseRoute {
       appId,
       id: req.params.id,
       type: req.body.type,
-      userId: undefined // TODO: Add userId support when user models are implemented
+      userId: req.user?.id
     }});
 
     res.status(202).send({ message: 'Model deleted successfully!' });

@@ -6,7 +6,9 @@ import {
   NexxusQueuePayload,
   NexxusBaseQueuePayload,
   NexxusBaseLogger,
-  FatalErrorException
+  FatalErrorException,
+  NexxusApplication,
+  MODEL_REGISTRY
 } from '@nexxus/core';
 import {
   NexxusDatabaseAdapter,
@@ -18,6 +20,8 @@ import {
   NexxusQueueMessage
 } from '@nexxus/message_queue';
 import { NexxusRedis } from '@nexxus/redis';
+
+import * as Dot from 'dot-prop';
 
 export type NexxusBaseWorkerEvents = Record<string, any[]>;
 
@@ -33,8 +37,9 @@ export abstract class NexxusBaseWorker<T extends NexxusConfig, Ev extends Nexxus
   public static logger: NexxusBaseLogger<any>;
 
   protected static loggerLabel: Readonly<string> = "NxxWorker";
-
+  protected static readonly loadedApps: Map<string, NexxusApplication> = new Map();
   protected abstract queueName: NexxusQueueName;
+
   public static database: NexxusDatabaseAdapter<NexxusConfig, NexxusDatabaseAdapterEvents>;
   public static messageQueue: NexxusMessageQueueAdapter<NexxusConfig, NexxusMessageQueueAdapterEvents>;
   public static redis: NexxusRedis;
@@ -63,6 +68,7 @@ export abstract class NexxusBaseWorker<T extends NexxusConfig, Ev extends Nexxus
 
   public async init() : Promise<void> {
     await NexxusBaseWorker.messageQueue.consumeMessages(this.queueName, this.processMessage.bind(this) as any);
+    await NexxusBaseWorker.loadApps();
   }
 
   protected async publish<Q extends NexxusQueueName>(
@@ -74,4 +80,14 @@ export abstract class NexxusBaseWorker<T extends NexxusConfig, Ev extends Nexxus
   }
 
   protected abstract processMessage(payload: NexxusQueueMessage<TPayload>) : Promise<void>;
+
+  protected static async loadApps(): Promise<void> {
+    const results = await NexxusBaseWorker.database.searchItems({ type: MODEL_REGISTRY.application });
+
+    for (let app of results) {
+      NexxusBaseWorker.loadedApps.set(app.getData().id as string, app);
+    }
+
+    NexxusBaseWorker.logger.info(`Loaded ${NexxusBaseWorker.loadedApps.size} applications into Worker service`, NexxusBaseWorker.loggerLabel);
+  }
 }
