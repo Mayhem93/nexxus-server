@@ -12,12 +12,12 @@ export interface NexxusApplicationSchema {
   [modelName: string]: NexxusModelDef;
 }
 
-export type NexxusApplicationModelType = INexxusBaseModel & {
+export type NexxusApplicationModelType = INexxusBaseModel<'application'> & {
   name: string;
   description?: string;
   schema: NexxusApplicationSchema;
   authEnabled: boolean;
-  userSchema?: NexxusUserDetailSchema;
+  userDetailSchema?: NexxusUserDetailSchema;
 };
 
 export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelType> {
@@ -30,7 +30,7 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
 
     if (data.authEnabled === undefined || typeof data.authEnabled !== 'boolean') {
       throw new Error("Application 'authEnabled' is required and must be a boolean");
-    } else if (data.authEnabled && (!data.userSchema || typeof data.userSchema !== 'object')) {
+    } else if (data.authEnabled && (!data.userDetailSchema || typeof data.userDetailSchema !== 'object')) {
       throw new Error("Application 'userSchema' must be provided when 'authEnabled' is true");
     }
 
@@ -41,7 +41,53 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
     return this.getData().schema;
   }
 
-  public getAppModelFieldType(appId: string, modelType: string, fieldPath: string): string | undefined {
+  public getUserDetailSchema(): NexxusUserDetailSchema | undefined {
+    return this.getData().userDetailSchema;
+  }
+
+/*   public validateUserDetails(partialDetails: Record<string, any>): boolean {
+    const userDetailSchema = this.data.userDetailSchema;
+
+    if (!userDetailSchema) {
+      return true; // No schema to validate against
+    }
+
+    for (const field in partialDetails) {
+      const fieldDef = userDetailSchema[field];
+      const fieldValue = partialDetails[field];
+
+      if (!fieldDef) {
+        return false; // Field not defined in schema
+      }
+
+      switch (fieldDef.type) {
+        case 'string':
+          if (typeof fieldValue !== 'string') return false;
+          break;
+        case 'number':
+          if (typeof fieldValue !== 'number') return false;
+          break;
+        case 'boolean':
+          if (typeof fieldValue !== 'boolean')
+            return false;
+
+
+          break;
+        case 'object':
+          if (typeof fieldValue !== 'object' || Array.isArray(fieldValue)) return false;
+          break;
+        case 'array':
+          if (!Array.isArray(fieldValue)) return false;
+          break;
+        default:
+          return false; // Unknown field type
+      }
+    }
+
+    return true; // All fields are valid
+  } */
+
+  public getAppModelFieldType(modelType: string, fieldPath: string): string | undefined {
     const appModelFieldType = Dot.getProperty(this.getSchema(), `${modelType}.${fieldPath}.type`);
 
     return appModelFieldType as string | undefined;

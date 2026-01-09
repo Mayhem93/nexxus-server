@@ -1,12 +1,16 @@
 import { NexxusApiException, ServerErrorException } from '../Exceptions';
 import { NexxusApi } from '../Api';
-import { NexxusException } from '@nexxus/core';
+import { FatalErrorException, NexxusException } from '@nexxus/core';
 
 import { Request, Response, NextFunction } from 'express';
 
 export default async (err: NexxusApiException, req: Request, res: Response, next: NextFunction) : Promise<void> => {
   if (!(err instanceof NexxusException)) {
     err = new ServerErrorException('An unexpected server error occurred.');
+  }
+
+  if (err instanceof FatalErrorException) {
+    err = new ServerErrorException('A fatal server error occurred.');
   }
 
   if (err.statusCode >= 500) {

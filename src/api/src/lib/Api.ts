@@ -7,7 +7,8 @@ import {
   NexxusConfig,
   NexxusApplication,
   MODEL_REGISTRY,
-  FatalErrorException
+  FatalErrorException,
+  NexxusUserModelType
 } from '@nexxus/core';
 import {
   NexxusDatabaseAdapter,
@@ -58,20 +59,18 @@ export type NexxusApiHeaders = {
 
 export interface NexxusApiRequest extends Express.Request {
   headers: NexxusApiHeaders & IncomingHttpHeaders;
-  user?: NexxusDecodedApiUser;
+  user?: NexxusApiUser;
 }
 
-export interface NexxusDecodedApiUser {
+export type NexxusApiUser = Pick<NexxusUserModelType, | 'username' | 'authProvider' | 'details' | 'appId'> & {
   id: string;
-  username: string;
-  iat: number;
-  exp: number;
-  [key: string]: any;
+  iat?: number;
+  exp?: number;
+  aud?: string;
+  iss?: string;
 }
 
 export interface NexxusApiResponse extends Express.Response {}
-
-type NexxusApiAuthConfig = NexxusBaseAuthStrategyConfig;
 
 type NexxusApiConfig = {
   name: string;
@@ -84,7 +83,7 @@ type NexxusApiConfig = {
     jwtSecret: string;
     jwtExpiresIn: string;
     strategies: {
-      [strategyName: NexxusAuthProviders]: NexxusApiAuthConfig;
+      [strategyName: NexxusAuthProviders]: NexxusBaseAuthStrategyConfig;
     };
   }
 } & NexxusConfig;
@@ -241,7 +240,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     return Array.from(this.authStrategies).some(strategy => strategy.name === strategyName);
   }
 
-  public getAuthProviderConfig<T extends NexxusApiAuthConfig = NexxusApiAuthConfig>(strategyName: NexxusAuthProviders): T {
+  public getAuthProviderConfig<T extends NexxusBaseAuthStrategyConfig = NexxusBaseAuthStrategyConfig>(strategyName: NexxusAuthProviders): T {
     const config = this.config.auth?.strategies[strategyName] as T | undefined;
 
     if (!config) {
@@ -251,11 +250,9 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     return config;
   }
 
-  public getAllAuthConfigs(): { [strategyName: NexxusAuthProviders]: NexxusApiAuthConfig } | undefined {
+  public getAllAuthConfigs(): { [strategyName: NexxusAuthProviders]: NexxusBaseAuthStrategyConfig } | undefined {
     return this.config.auth?.strategies;
   }
-
-  // public getAuthConfig() :
 
   private addAuthStrategy(strategy: NexxusAuthStrategy): void {
     if (!(strategy instanceof NexxusAuthStrategy)) {

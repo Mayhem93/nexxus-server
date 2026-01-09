@@ -1,4 +1,4 @@
-import { NexxusApi, NexxusDecodedApiUser } from '../Api';
+import { NexxusApi, NexxusApiUser } from '../Api';
 
 import jwt from 'jsonwebtoken';
 import type { Request, Response } from 'express';
@@ -39,16 +39,20 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
   /**
    * Generate JWT token from user object
    */
-  protected generateToken(user: NexxusDecodedApiUser): string {
+  protected generateToken(user: NexxusApiUser): string {
     return jwt.sign(user, NexxusAuthStrategy.jwtSecret,
-      { expiresIn: NexxusAuthStrategy.jwtExpiresIn as any }
+      {
+        expiresIn: NexxusAuthStrategy.jwtExpiresIn as any,
+        issuer: 'localhost',
+        audience: user.appId
+      }
     );
   }
 
   /**
    * Send success response with token
    */
-  protected sendTokenResponse(res: Response, user: NexxusDecodedApiUser): void {
+  protected sendTokenResponse(res: Response, user: NexxusApiUser): void {
     const token = this.generateToken(user);
 
     res.json({
@@ -64,7 +68,8 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
    * Find user by username (email)
    */
   public async findUserByUsername(appId: string, username: string): Promise<NexxusApplicationUser | null> {
-    const fq = new NexxusFilterQuery({ username }, { modelType: 'user'});
+    const app = NexxusApi.getStoredApp(appId);
+    const fq = new NexxusFilterQuery({ username }, { modelType: 'user', userDetailsSchema: app?.getUserDetailSchema()});
 
     const res = await NexxusApi.database.searchItems({
       appId,
@@ -84,7 +89,6 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
     username: string;
     password?: string;
     authProvider: NexxusAuthProviders;
-    deviceId: string;
     details?: Record<string, any>;
   }): Promise<NexxusApplicationUser> {
     const userData: NexxusUserModelType = {
@@ -93,7 +97,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
       username: data.username,
       password: data.password ? NexxusAuthStrategy.hashPassword(data.password) : null,
       authProvider: data.authProvider,
-      devices: [ data.deviceId ],
+      devices: [],
       details: data.details || {}
     };
     const user = new NexxusApplicationUser(userData);
@@ -108,7 +112,6 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
    */
   protected async findOrCreateUser(appId: string, data: {
     username: string;
-    deviceId: string;
     authProvider: NexxusAuthProviders;
     details?: Record<string, any>;
   }): Promise<NexxusApplicationUser> {
@@ -118,7 +121,6 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
       user = await this.createUser(appId, {
         authProvider: data.authProvider,
         username: data.username,
-        deviceId: data.deviceId,
         details: data.details
       });
     }
@@ -126,7 +128,19 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
     return user;
   }
 
-  protected static hashPassword(password: string): string {
+  protected static convertToApiUser(user: NexxusApplicationUser): NexxusApiUser {
+    const data = user.getData();
+
+    return {
+      id: data.id!,
+      username: data.username,
+      authProvider: data.authProvider,
+      details: data.details,
+      appId: data.appId
+    };
+  }
+
+  public static hashPassword(password: string): string {
     return bcrypt.hashSync(password, 10);
   }
 

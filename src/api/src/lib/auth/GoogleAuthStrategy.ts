@@ -1,5 +1,10 @@
 import NexxusAuthStrategy, { NexxusBaseAuthStrategyConfig } from './AuthStrategy';
-import { NexxusApiRequest, NexxusApiResponse, NexxusDecodedApiUser } from '../Api';
+import {
+  NexxusApi,
+  NexxusApiUser,
+  NexxusApiRequest,
+  NexxusApiResponse
+} from '../Api';
 
 import type { Request, Response } from 'express';
 import passport from 'passport';
@@ -28,7 +33,7 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
       },
       async (req, accessToken, refreshToken, profile, done) => {
         try {
-          const [appId, deviceId] = (req.query.state as string).split('|');
+          const appId = req.query.state as string;
           const email = profile.emails?.[0]?.value;
 
           if (!email) {
@@ -39,14 +44,13 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
           const user = await this.findOrCreateUser(appId, {
             username: email,
             authProvider: 'google',
-            deviceId,
             details: {
               name: profile.displayName,
               googleId: profile.id
             }
           });
 
-          return done(null, user.getData());
+          return done(null, NexxusAuthStrategy.convertToApiUser(user));
         } catch (error) {
           return done(error);
         }
@@ -68,22 +72,18 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
 
   async handleCallback(req: Request, res: Response): Promise<void> {
     // Handle Google's callback (browser was redirected here by Google)
-    passport.authenticate('google', { session: false }, (err: any, user: any, info: any) => {
+    passport.authenticate('google', { session: false }, (err: any, user: NexxusApiUser, info: any) => {
       if (err) {
         throw err;
       }
+
+      // NexxusApi.logger.debug(`Google authentication callback invoked: ${JSON.stringify(user)}`, 'GoogleAuthStrategy');
 
       if (!user) {
         return res.status(401).json({ error: info?.message || 'Authentication failed' });
       }
 
-      // Convert to API user format
-      const apiUser: NexxusDecodedApiUser = {
-        id: user.id as string,
-        username: user.username
-      };
-
-      this.sendTokenResponse(res, apiUser);
+      this.sendTokenResponse(res, user);
     })(req, res);
   }
 }

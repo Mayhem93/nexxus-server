@@ -27,6 +27,12 @@ export interface NexxusDbSearchOptions<T extends NexxusModelTypeName | string = 
   offset?: number;
 }
 
+export interface NexxusDbGetOptions<T extends NexxusModelTypeName = string> {
+  ids: Array<string>;
+  type: T;
+  appId?: string;
+}
+
 export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends NexxusDatabaseAdapterEvents>
   extends NexxusBaseService<T, Ev extends NexxusDatabaseAdapterEvents ? Ev : NexxusDatabaseAdapterEvents> {
 
@@ -49,7 +55,10 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
   abstract disconnect(): Promise<void>;
 
   abstract createItems(collection: Array<AnyNexxusModel>): Promise<void>;
-  abstract getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>>;
+  // abstract getItems(options: NexxusDbGetOptions): Promise<Array<NexxusBaseModel | null>>;
+  abstract getItems(options: NexxusDbGetOptions<'application'>): Promise<Array<NexxusApplication | null>>;
+  abstract getItems(options: NexxusDbGetOptions<'user'>): Promise<Array<NexxusApplicationUser | null>>;
+  abstract getItems(options: NexxusDbGetOptions<string>): Promise<Array<NexxusAppModel | null>>;
   abstract searchItems(options: NexxusDbSearchOptions<'application'>): Promise<NexxusApplication[]>;
   abstract searchItems(options: NexxusDbSearchOptions<'user'>): Promise<NexxusApplicationUser[]>;
   abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<NexxusAppModel[]>;

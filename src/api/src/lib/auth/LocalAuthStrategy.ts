@@ -1,10 +1,10 @@
 import NexxusAuthStrategy from './AuthStrategy';
-import { NexxusDecodedApiUser, NexxusApi } from '../Api';
+import { NexxusApiUser, NexxusApi } from '../Api';
+import { UserAuthenticationFailedException } from '../Exceptions';
 
 import passport from 'passport';
 import { Strategy as PassportLocalStrategy } from 'passport-local';
 import type { Request, Response } from 'express';
-import { UserAuthenticationFailedException } from '../Exceptions';
 
 export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
   readonly name = 'local';
@@ -34,7 +34,7 @@ export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
             return done(null, false, new UserAuthenticationFailedException('Invalid credentials'));
           }
 
-          return done(null, user.getData());
+          return done(null, NexxusAuthStrategy.convertToApiUser(user));
         } catch (error) {
           return done(error);
         }
@@ -43,7 +43,7 @@ export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
   }
 
   async handleAuth(req: Request, res: Response): Promise<void> {
-    passport.authenticate('local', { session: false }, (err: any, user: NexxusDecodedApiUser | undefined, info: any) => {
+    passport.authenticate('local', { session: false }, (err: any, user?: NexxusApiUser, info?: any) => {
       if (err) {
         throw err;
       }
@@ -54,13 +54,7 @@ export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
         throw new UserAuthenticationFailedException('Authentication failed');
       }
 
-      // Convert to API user format
-      const apiUser: NexxusDecodedApiUser = {
-        id: user.id as string,
-        username: user.username
-      };
-
-      this.sendTokenResponse(res, apiUser);
+      this.sendTokenResponse(res, user);
     })(req, res);
   }
 

@@ -3,10 +3,10 @@ import {
   INexxusBaseModel,
   MODEL_REGISTRY
 } from "./BaseModel";
-import { NexxusModelDef } from "../common/ModelTypes";
+import { NexxusFieldDef } from "../common/ModelTypes";
 import { InvalidUserModelException } from "../lib/Exceptions";
 
-export type NexxusUserModelType = INexxusBaseModel & {
+export type NexxusUserModelType = INexxusBaseModel<'user'> & {
   appId: string;
   username: string;
   password: string | null;
@@ -16,7 +16,7 @@ export type NexxusUserModelType = INexxusBaseModel & {
 };
 
 export interface NexxusUserDetailSchema {
-  [key: string]: NexxusModelDef;
+  [field: string]: NexxusFieldDef;
 }
 
 export class NexxusApplicationUser extends NexxusBaseModel<NexxusUserModelType> {
@@ -33,6 +33,24 @@ export class NexxusApplicationUser extends NexxusBaseModel<NexxusUserModelType> 
 
     if ((this.data.password !== undefined && this.data.password !== null) && typeof this.data.password !== 'string') {
       throw new InvalidUserModelException("User 'password' must be a string if provided");
+    }
+
+    if (this.data.authProvider === undefined || typeof this.data.authProvider !== 'string') {
+      throw new InvalidUserModelException("User 'authProvider' is required and must be a string");
+    }
+
+    if (this.data.devices === undefined || !Array.isArray(this.data.devices)) {
+      throw new InvalidUserModelException("User 'devices' must be an array of strings");
+    } else {
+      const areAllStrings = this.data.devices.every(deviceId => typeof deviceId === 'string');
+
+      if (!areAllStrings) {
+        throw new InvalidUserModelException("User 'devices' must be an array of strings");
+      }
+    }
+
+    if (this.data.details !== undefined && typeof this.data.details !== 'object') {
+      throw new InvalidUserModelException("User 'details' must be an object if provided");
     }
   }
 

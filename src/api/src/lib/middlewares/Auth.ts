@@ -2,7 +2,7 @@ import {
   NexxusApi,
   NexxusApiRequest,
   NexxusApiResponse,
-  NexxusDecodedApiUser
+  NexxusApiUser
 } from '../Api';
 import {
   UserAuthenticationFailedException,
@@ -27,7 +27,7 @@ export default (req: NexxusApiRequest, res: NexxusApiResponse, next: NextFunctio
     throw new NoAuthPresentException('No token provided');
   }
 
-  req.user = jwt.verify(token, apiConfig.auth?.jwtSecret as string) as NexxusDecodedApiUser; // Attach user info to request
+  req.user = jwt.verify(token, apiConfig.auth?.jwtSecret as string) as NexxusApiUser; // Attach user info to request
 
   if (req.user) {
     return next();

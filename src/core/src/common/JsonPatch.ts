@@ -6,7 +6,8 @@ import type {
   NexxusModelDef,
   NexxusObjectFieldDef,
   NexxusArrayFieldDef,
-  NexxusModelPrimitiveType
+  NexxusModelPrimitiveType,
+  NexxusModelFieldType
 } from '../common/ModelTypes';
 import {
   isBuiltinModel,
@@ -14,6 +15,7 @@ import {
   NEXXUS_BUILTIN_MODEL_SCHEMAS,
   NEXXUS_UNIVERSAL_FIELDS
 } from './BuiltinSchemas';
+import type { NexxusUserDetailSchema } from '../models/User';
 import { NexxusAppModelType } from '../models/AppModel';
 import { InvalidJsonPatchException } from '../lib/Exceptions';
 
@@ -36,11 +38,12 @@ export type NexxusJsonPatchMetadata = {
   appId: string;
   id: string;
   type: string;
+  pathFieldTypes?: NexxusModelFieldType[]; // types of each path field, for easier validation
 };
 
 export type NexxusJsonPatchValidationConfig =
   | { appSchema: NexxusApplicationSchema }  // For app-defined models
-  | { modelType: NexxusBuiltinModelType }; // For built-in models (user, application)
+  | { modelType: NexxusBuiltinModelType, userDetailsSchema?: NexxusUserDetailSchema }; // For built-in models (user, application)
 
 export class NexxusJsonPatch {
   private valid: boolean = false;
@@ -58,7 +61,7 @@ export class NexxusJsonPatch {
     }
 
     if (!fullPatch.metadata.type || typeof fullPatch.metadata.type !== 'string') {
-      throw new InvalidJsonPatchException(`Patch metadata must include modelType`);
+      throw new InvalidJsonPatchException(`Patch metadata must include type`);
     }
 
     if (!fullPatch.metadata.appId || typeof fullPatch.metadata.appId !== 'string') {
@@ -68,28 +71,16 @@ export class NexxusJsonPatch {
     if (!fullPatch.metadata.id || typeof fullPatch.metadata.id !== 'string') {
       throw new InvalidJsonPatchException(`Patch metadata must include id`);
     }
+
+    this.fullPatch.metadata.pathFieldTypes = [];
   }
 
   public get(): NexxusJsonPatchType {
-    return this.fullPatch;
-  }
-
-  public getPartialModel(): Partial<NexxusAppModelType> {
-    const partialModel: Partial<NexxusAppModelType> = {
-      id: this.fullPatch.metadata.id,
-      type: this.fullPatch.metadata.type,
-      appId: this.fullPatch.metadata.appId
-    };
-
-    for (let i = 0; i < this.fullPatch.path.length; i++) {
-      const path = this.fullPatch.path[i];
-      const value = this.fullPatch.value[i];
-
-      // Set value at path in partialModel
-      dot.setProperty(partialModel, path, value);
+    if (!this.valid) {
+      throw new InvalidJsonPatchException('Cannot get JSON Patch before validation');
     }
 
-    return partialModel;
+    return this.fullPatch;
   }
 
   public isValid(): boolean {
@@ -101,20 +92,13 @@ export class NexxusJsonPatch {
     let modelSpec: NexxusModelDef;
 
     // Determine which schema to use
-    if (isBuiltinModel(modelType)) {
-      // Built-in model: only include updatedAt from universal fields + built-in schema
-      const builtinSchema = NEXXUS_BUILTIN_MODEL_SCHEMAS[modelType as NexxusBuiltinModelType];
-      modelSpec = {
-        updatedAt: NEXXUS_UNIVERSAL_FIELDS.updatedAt,
-        ...builtinSchema
-      };
-    } else {
-      // App-defined model: get from app schema and add updatedAt
+    if ('appSchema' in config) {
+      /* // App-defined model: get from app schema and add updatedAt
       if (!('appSchema' in config)) {
         throw new InvalidJsonPatchException(
           `Model type "${modelType}" is not built-in, but no app schema provided`
         );
-      }
+      } */
 
       const appModelSpec = config.appSchema[modelType];
 
@@ -126,6 +110,27 @@ export class NexxusJsonPatch {
         updatedAt: NEXXUS_UNIVERSAL_FIELDS.updatedAt,
         ...appModelSpec
       };
+    } else {
+      // Built-in model: only include updatedAt from universal fields + built-in schema
+      const builtinSchema = NEXXUS_BUILTIN_MODEL_SCHEMAS[modelType as NexxusBuiltinModelType];
+
+      modelSpec = {
+        updatedAt: NEXXUS_UNIVERSAL_FIELDS.updatedAt,
+        ...builtinSchema
+      };
+
+      switch (config.modelType) {
+        case 'user':
+          if (config.modelType === 'user' && !config.userDetailsSchema) {
+            throw new InvalidJsonPatchException("User detail schema must be provided for 'user' model patches");
+          }
+
+          modelSpec.details = { type: 'object', properties: config.userDetailsSchema!, required: false };
+
+          break;
+        default:
+          throw new InvalidJsonPatchException(`Unsupported built-in model type: ${config.modelType}`);
+      }
     }
 
     // Validate each path/value pair
@@ -157,6 +162,8 @@ export class NexxusJsonPatch {
           `Value at path "${currentPath}" has invalid type`
         );
       }
+
+      this.fullPatch.metadata.pathFieldTypes!.push(fieldDef.type);
     }
 
     this.valid = true;

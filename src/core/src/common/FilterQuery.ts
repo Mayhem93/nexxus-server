@@ -15,6 +15,7 @@ import {
 import type {
   NexxusAppModelType
 } from '../models/AppModel';
+import type { NexxusUserDetailSchema } from '../models/User';
 
 import * as dot from 'dot-prop';
 import sortKeys from 'sort-keys';
@@ -56,7 +57,7 @@ type FilterNodeWithContext = FilterNode & {
 
 export type NexxusFilterQueryConfig =
   | { appModelDef: NexxusModelDef }  // For app-defined models
-  | { modelType: NexxusBuiltinModelType }; // For built-in models (user, application)
+  | { modelType: NexxusBuiltinModelType, userDetailsSchema?: NexxusUserDetailSchema }; // For built-in models (user, application)
 
 export class NexxusFilterQuery {
   private nodes: FilterNode[] = [];
@@ -73,8 +74,16 @@ export class NexxusFilterQuery {
     } else {
       // Merge universal fields + built-in model schema
       const builtinSchema = NEXXUS_BUILTIN_MODEL_SCHEMAS[config.modelType];
-      
+
       this.modelDef = { ...NEXXUS_UNIVERSAL_FIELDS, ...builtinSchema };
+
+      if (config.modelType === 'user') {
+        if (!config.userDetailsSchema) {
+          throw new InvalidQueryFilterException("User detail schema must be provided for 'user' model queries");
+        }
+
+        this.modelDef.details = { type: 'object', properties: config.userDetailsSchema!, required: false };
+      }
     }
 
     this.validateAndParse();

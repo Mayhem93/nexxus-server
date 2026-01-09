@@ -15,6 +15,7 @@ export interface NexxusDeviceProps {
   id: string;
   appId: string;
   name: string;
+  userId?: string | null;
   type: "volatile" | "persistent" | "unknown";
   status: 'online' | 'offline' | 'unknown';
   connectedTo: string | null;
@@ -42,6 +43,7 @@ export class NexxusDevice extends NexxusRedisBaseModel<NexxusDeviceProps> {
       id: props.id || crypto.randomUUID(),
       appId: props.appId,
       name: props.name || 'Unnamed Device',
+      userId: props.userId || null,
       type: props.type || 'unknown',
       status: props.status || 'unknown',
       connectedTo: props.connectedTo || null,

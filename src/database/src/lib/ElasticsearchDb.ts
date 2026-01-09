@@ -1,6 +1,7 @@
 import {
   NexxusDatabaseAdapter,
   NexxusDatabaseAdapterEvents,
+  NexxusDbGetOptions,
   NexxusDbSearchOptions
 } from "./DatabaseAdapter";
 import {
@@ -151,12 +152,12 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
       switch (item.constructor) {
         case NexxusApplication:
           itemData = item.getData();
-          index = `${NEXXUS_PREFIX_LC}-applications`;
+          index = `${NEXXUS_PREFIX_LC}-application`;
 
           break;
         case NexxusApplicationUser:
           itemData = (item as NexxusApplicationUser).getData();
-          index = `${NEXXUS_PREFIX_LC}-app-${itemData.appId}-users`;
+          index = `${NEXXUS_PREFIX_LC}-app-${itemData.appId}-${itemData.type}`;
 
           break;
         case NexxusAppModel:
@@ -188,7 +189,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
 
     switch (options.type) {
       case 'application':
-        index += '-applications';
+        index += `-${options.type}`;
 
         break;
 
@@ -197,7 +198,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
           throw new Error("App ID is required for searching user models");
         }
 
-        index += `-app-${options.appId}-users`;
+        index += `-app-${options.appId}-${options.type}`;
 
         break;
       default:
@@ -237,9 +238,72 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     return models;
   }
 
-  async getItems(collection: Array<NexxusBaseModel>, query: any): Promise<Array<NexxusBaseModel>> {
-    // Implementation for retrieving items from Elasticsearch
-    return [];
+  async getItems(options: NexxusDbGetOptions<'application'>): Promise<Array<NexxusApplication | null>>;
+  async getItems(options: NexxusDbGetOptions<'user'>): Promise<Array<NexxusApplicationUser | null>>;
+  async getItems(options: NexxusDbGetOptions<string>): Promise<Array<NexxusAppModel | null>>;
+
+  async getItems(options: NexxusDbGetOptions<string>): Promise<Array<NexxusBaseModel | null>> {
+    let index : string;
+
+    switch(options.type) {
+      case 'application':
+        index = `${NEXXUS_PREFIX_LC}-applications`;
+
+        break;
+
+      case 'user':
+        if (!options.appId) {
+          throw new Error("App ID is required for getting user models");
+        }
+
+        index = `${NEXXUS_PREFIX_LC}-app-${options.appId}-${options.type}`;
+
+        break;
+
+      default:
+        if (!options.appId) {
+          throw new Error("App ID is required for getting app-specific models");
+        }
+
+        index = `${NEXXUS_PREFIX_LC}-app-${options.appId}-${options.type}`;
+    }
+
+    try {
+      const esMgetResponse = await this.client.mget({
+        index: index,
+        ids: options.ids,
+        _source: true
+      });
+
+      return esMgetResponse.docs.map(doc => {
+        if ('error' in doc) {
+          NexxusElasticsearchDb.logger.warn(`Error retrieving document ID ${doc._id} from Elasticsearch: ${JSON.stringify(doc.error)}`, NexxusDatabaseAdapter.loggerLabel);
+
+          return null;
+        }
+
+        if (!doc.found) {
+          return null;
+        }
+
+        switch(options.type) {
+          case 'application':
+            return new NexxusApplication(doc._source as NexxusApplicationModelType);
+
+          case 'user':
+            return new NexxusApplicationUser(doc._source as NexxusUserModelType);
+
+          default:
+            return new NexxusAppModel(doc._source as NexxusAppModelType);
+        }
+      });
+    } catch (e: Error | unknown) {
+      if (e instanceof ElasticSearch.errors.ResponseError && e.statusCode === 404) {
+        return [];
+      } else {
+        throw e;
+      }
+    }
   }
 
   async updateItems(collection: Array<NexxusJsonPatch>): Promise<void> {
@@ -247,38 +311,85 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
 
     for (const patch of collection) {
       const patchData = patch.get();
-      const index = `${NEXXUS_PREFIX_LC}-app-${patchData.metadata.appId}-${patchData.metadata.type}`
+      const scriptParams : Record<string, any> = {};
+      let index = `${NEXXUS_PREFIX_LC}-`
+
+      if (patchData.metadata.type === 'application') {
+        index += `${patchData.metadata.type}`;
+      } else {
+        if (!patchData.metadata.appId) {
+          throw new Error("App ID is required for updating for user or app-specific models");
+        }
+
+        index += `app-${patchData.metadata.appId}-${patchData.metadata.type}`;
+      }
 
       // Build a single script for all paths in this patch
-      const scriptLines = patchData.path.map((path, idx) => {
+      let scriptLines : Array<string | null> = patchData.path.map((path, idx) => {
+        let scriptLine: string | undefined;
+
         switch (patchData.op) {
           case 'replace':
-            return `ctx._source.${path} = params.value${idx}`;
+            scriptLine = `ctx._source.${path} = params.value${idx}`;
+
+            break;
+          case 'append':
+            if (patchData.metadata.pathFieldTypes![idx] === 'array') {
+              scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = []; } ctx._source.${path}.add(params.value${idx})`;
+            } else if (patchData.metadata.pathFieldTypes![idx] === 'string') {
+              scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ''; } ctx._source.${path} += params.value${idx}`;
+            }
+
+            NexxusElasticsearchDb.logger.warn(`Append operation not supported for field type: ${patchData.metadata.pathFieldTypes![idx]}`, NexxusDatabaseAdapter.loggerLabel);
+
+            break;
+          case 'prepend':
+            if (patchData.metadata.pathFieldTypes![idx] === 'array') {
+              scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = []; } ctx._source.${path}.add(0, params.value${idx})`;
+            } else if (patchData.metadata.pathFieldTypes![idx] === 'string') {
+              scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ''; } ctx._source.${path} = params.value${idx} + ctx._source.${path}`;
+            }
+
+            NexxusElasticsearchDb.logger.warn(`Prepend operation not supported for field type: ${patchData.metadata.pathFieldTypes![idx]}`, NexxusDatabaseAdapter.loggerLabel);
+
+            break;
           default:
             NexxusElasticsearchDb.logger.warn(`Unsupported JSON Patch operation: ${patchData.op}`, NexxusDatabaseAdapter.loggerLabel);
+
+            break;
         }
+
+        if (scriptLine === undefined) {
+          return null;
+        }
+
+        scriptParams[`value${idx}`] = patchData.value[idx];
+
+        return scriptLine;
       });
 
-      const scriptParams = patchData.path.reduce((acc, path, idx) => {
-        acc[`value${idx}`] = patchData.value[idx];
+      scriptLines = scriptLines.filter(line => line !== null);
 
-        return acc;
-      }, {} as Record<string, any>);
-
-      bulkBody.push(
-        { update: { _index: index, _id: patchData.metadata.id } },
-        {
-          script: {
-            source: scriptLines.join(';\n'),
-            lang: 'painless',
-            params: scriptParams
+      if (scriptLines.length > 0) {
+        bulkBody.push(
+          { update: { _index: index, _id: patchData.metadata.id } },
+          {
+            script: {
+              source: scriptLines.join(';\n'),
+              lang: 'painless',
+              params: scriptParams
+            }
           }
-        }
-      );
+        );
+      } else {
+        NexxusElasticsearchDb.logger.warn(`No valid script lines generated for JSON Patch on ID ${patchData.metadata.id}`, NexxusDatabaseAdapter.loggerLabel);
+      }
     }
 
+    NexxusElasticsearchDb.logger.debug(`Executing bulk update in Elasticsearch with ${JSON.stringify(bulkBody)}`, NexxusDatabaseAdapter.loggerLabel);
+
     if (bulkBody.length === 0) {
-      NexxusElasticsearchDb.logger.warn("No items to update in Elasticsearch database", NexxusDatabaseAdapter.loggerLabel);
+      NexxusElasticsearchDb.logger.warn('No items to update in Elasticsearch database', NexxusDatabaseAdapter.loggerLabel);
     } else {
       await this.client.bulk({ operations: bulkBody });
     }

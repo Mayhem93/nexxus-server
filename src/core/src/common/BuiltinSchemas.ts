@@ -9,13 +9,15 @@ export const NEXXUS_UNIVERSAL_FIELDS = {
 } as const;
 
 /**
- * Schema definitions for built-in (reserved) models
+ * Schema definitions for built-in (reserved) models. Only used for
  */
 export const NEXXUS_BUILTIN_MODEL_SCHEMAS = {
   user: {
     username: { type: 'string', required: true },
+    password: { type: 'string', required: false },
     authProvider: { type: 'string', required: true },
-    devices: { type: 'array', required: true, arrayType: 'string' }
+    devices: { type: 'array', required: true, arrayType: 'string' },
+    details: { type: 'object', required: false, properties: {} }
   },
   application: {
     name: { type: 'string', required: true }

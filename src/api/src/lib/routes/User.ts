@@ -1,9 +1,23 @@
 import { NexxusApiBaseRoute } from '../BaseRoute';
-import { InvalidAuthMethodException, InvalidParametersException, UserAlreadyExistsException } from '../Exceptions';
-import { type NexxusApiRequest, type NexxusApiResponse, NexxusApi } from '../Api';
-import { RequiredHeadersMiddleware, AppExistsMiddleware, AuthMiddleware } from '../middlewares';
+import {
+  InvalidAuthMethodException,
+  InvalidParametersException,
+  UserAlreadyExistsException
+} from '../Exceptions';
+import {
+  type NexxusApiRequest,
+  type NexxusApiResponse,
+  NexxusApi
+} from '../Api';
+import {
+  RequiredHeadersMiddleware,
+  AppExistsMiddleware,
+  AuthMiddleware
+} from '../middlewares';
 
 import type { Router, RequestHandler } from 'express';
+import { InvalidJsonPatchException, NexxusJsonPatch, NexxusJsonPatchType, NexxusUserModelType } from '@nexxus/core';
+import { NexxusAuthStrategy } from '../auth';
 
 type UserRegisterRequestBody = {
   username: string;
@@ -11,8 +25,16 @@ type UserRegisterRequestBody = {
   [key: string]: any; // Additional user fields specified by app schema
 };
 
+type UserUpdateRequestBody = {
+  patch: Omit<NexxusJsonPatchType, 'metadata'>;
+}
+
 interface UserRegisterRequest extends NexxusApiRequest {
   body: UserRegisterRequestBody;
+}
+
+interface UserUpdateRequest extends NexxusApiRequest {
+  body: UserUpdateRequestBody;
 }
 
 export default class UserRoute extends NexxusApiBaseRoute {
@@ -25,13 +47,28 @@ export default class UserRoute extends NexxusApiBaseRoute {
     this.router.use(AppExistsMiddleware() as RequestHandler);
 
     this.router.post('/register',
-      RequiredHeadersMiddleware('nxx-device-id') as RequestHandler,
       this.register.bind(this) as RequestHandler
     );
+    this.router.post('/login',
+      this.login.bind(this) as RequestHandler
+    );
+
     this.router.get('/me',
       AuthMiddleware as RequestHandler,
       this.me.bind(this) as RequestHandler
     );
+    this.router.put('/',
+      AuthMiddleware as RequestHandler,
+      this.update.bind(this) as RequestHandler
+    );
+  }
+
+  private async me(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
+    const { iat, exp, aud, iss, ...userData } = req.user!;
+
+    NexxusApi.logger.debug(`Fetching current user data: ${JSON.stringify(req.user!)}`, 'UserRoute');
+
+    res.status(200).json(userData);
   }
 
   private async register(req: UserRegisterRequest, res: NexxusApiResponse): Promise<void> {
@@ -60,7 +97,6 @@ export default class UserRoute extends NexxusApiBaseRoute {
     const user = await localStrategy.createUser(appId, {
       username,
       password,
-      deviceId: req.headers['nxx-device-id'] as string,
       authProvider: 'local',
       details: additionalFields
     });
@@ -74,9 +110,45 @@ export default class UserRoute extends NexxusApiBaseRoute {
     });
   }
 
-  private async me(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
-    const { iat, exp, ...userData } = req.user!;
+  private async update(req: UserUpdateRequest, res: NexxusApiResponse): Promise<void> {
+    if (req.body.patch === undefined || typeof req.body.patch !== 'object') {
+      throw new InvalidParametersException('Invalid or missing patch data');
+    }
 
-    res.status(200).json(userData);
+    const appId = req.headers['nxx-app-id'] as string;
+    const app = NexxusApi.getStoredApp(appId);
+
+    // find if password is being updated
+    // TODO: need to validate patch before this step to avoid potential issues
+    const passwordUpdateIndex = req.body.patch.path.findIndex(p => p === 'password');
+
+    if (passwordUpdateIndex !== -1) {
+      req.body.patch.value[passwordUpdateIndex] = NexxusAuthStrategy.hashPassword(req.body.patch.value[passwordUpdateIndex]);
+    }
+
+    const jsonPatch = new NexxusJsonPatch({
+      ...req.body.patch,
+      metadata: {
+        appId,
+        id: req.user!.id,
+        type: 'user'
+      }
+    });
+
+    try {
+      jsonPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
+
+      await NexxusApi.database.updateItems([ jsonPatch ]);
+
+      res.status(200).json({ message: 'User updated successfully' });
+    } catch (e) {
+      if (e instanceof InvalidJsonPatchException) {
+        throw new InvalidParametersException(`Invalid JSON Patch: ${e.message}`);
+      }
+
+      throw e;
+    }
   }
+
+  private async login(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {}
 }

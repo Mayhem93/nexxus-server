@@ -4,34 +4,23 @@ import { NexxusAppModel, NexxusAppModelType } from "./AppModel";
 
 import { randomUUID } from "node:crypto"
 
-interface NexxusGenericModel {
-  [key: string]: any | NexxusGenericModel;
-};
-
 export type AnyNexxusModel = NexxusApplication | NexxusApplicationUser | NexxusAppModel; // Extend this union as more built-in models are added
 export type AnyNexxusModelType = NexxusApplicationModelType | NexxusUserModelType | NexxusAppModelType; // Extend this union as more built-in models are added
 
-export interface INexxusBaseModel extends NexxusGenericModel {
+export interface INexxusBaseModel<TType extends string = string> {
   id?: string;
   createdAt?: number;
   updatedAt?: number;
-  type: NexxusModelTypeName;
-};
+  type: TType;
+}
 
 export const MODEL_REGISTRY = {
   application: 'application',
   user: 'user'
 } as const;
 
-export type NexxusModelTypeName = typeof MODEL_REGISTRY[keyof typeof MODEL_REGISTRY] | string;
-
-// Map model type names to their class types
-export interface ModelTypeMap {
-  application: NexxusApplication;
-  user: NexxusApplicationUser;
-  // Add mappings for other built-in models
-  // device: NexxusDevice;
-}
+export type NexxusBuiltinModelTypeName = typeof MODEL_REGISTRY[keyof typeof MODEL_REGISTRY];
+export type NexxusModelTypeName = NexxusBuiltinModelTypeName | string;
 
 export abstract class NexxusBaseModel<T extends INexxusBaseModel = INexxusBaseModel> {
   protected data: T;
