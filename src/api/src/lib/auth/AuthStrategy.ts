@@ -8,6 +8,7 @@ import {
   NexxusFilterQuery,
   NexxusUserModelType
 } from '@nexxus/core';
+import { UserAuthenticationFailedException } from '../Exceptions';
 
 export interface NexxusBaseAuthStrategyConfig {
   jwtSecret: string;
@@ -88,7 +89,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
   public async createUser(appId: string, data: {
     username: string;
     password?: string;
-    authProvider: NexxusAuthProviders;
+    authProviders: NexxusAuthProviders[];
     details?: Record<string, any>;
   }): Promise<NexxusApplicationUser> {
     const userData: NexxusUserModelType = {
@@ -96,7 +97,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
       appId,
       username: data.username,
       password: data.password ? NexxusAuthStrategy.hashPassword(data.password) : null,
-      authProvider: data.authProvider,
+      authProviders: data.authProviders,
       devices: [],
       details: data.details || {}
     };
@@ -114,18 +115,28 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
     username: string;
     authProvider: NexxusAuthProviders;
     details?: Record<string, any>;
-  }): Promise<NexxusApplicationUser> {
+  }): Promise<[NexxusApplicationUser, 'found' | 'created']> {
     let user = await this.findUserByUsername(appId, data.username);
+    const app = NexxusApi.getStoredApp(appId);
+    let result: [NexxusApplicationUser, 'found' | 'created'];
 
     if (!user) {
       user = await this.createUser(appId, {
-        authProvider: data.authProvider,
+        authProviders: [data.authProvider],
         username: data.username,
         details: data.details
       });
+
+      result = [user, 'created'];
+    } else if (!user.getData().authProviders.includes(data.authProvider) && app?.getData().allowMultipleLogin === false) {
+      throw new UserAuthenticationFailedException(
+        `User not registered for ${data.authProvider} authentication and multiple login is disabled`
+      )
+    } else {
+      result = [user, 'found'];
     }
 
-    return user;
+    return result;
   }
 
   protected static convertToApiUser(user: NexxusApplicationUser): NexxusApiUser {
@@ -134,7 +145,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
     return {
       id: data.id!,
       username: data.username,
-      authProvider: data.authProvider,
+      authProviders: data.authProviders,
       details: data.details,
       appId: data.appId
     };

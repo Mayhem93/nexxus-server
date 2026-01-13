@@ -17,6 +17,7 @@ export type NexxusApplicationModelType = INexxusBaseModel<'application'> & {
   description?: string;
   schema: NexxusApplicationSchema;
   authEnabled: boolean;
+  allowMultipleLogin: boolean | null;
   userDetailSchema?: NexxusUserDetailSchema;
 };
 
@@ -34,6 +35,12 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
       throw new Error("Application 'userSchema' must be provided when 'authEnabled' is true");
     }
 
+    if (data.authEnabled && typeof data.allowMultipleLogin !== 'boolean' && data.allowMultipleLogin !== undefined) {
+      throw new Error("Application 'allowMultipleLogin' must be a boolean when 'authEnabled' is enabled");
+    }
+
+    data.allowMultipleLogin = data.authEnabled ? data.allowMultipleLogin || true : null;
+
     //TODO: actually use json schema validation for schema structure
   }
 
@@ -44,48 +51,6 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
   public getUserDetailSchema(): NexxusUserDetailSchema | undefined {
     return this.getData().userDetailSchema;
   }
-
-/*   public validateUserDetails(partialDetails: Record<string, any>): boolean {
-    const userDetailSchema = this.data.userDetailSchema;
-
-    if (!userDetailSchema) {
-      return true; // No schema to validate against
-    }
-
-    for (const field in partialDetails) {
-      const fieldDef = userDetailSchema[field];
-      const fieldValue = partialDetails[field];
-
-      if (!fieldDef) {
-        return false; // Field not defined in schema
-      }
-
-      switch (fieldDef.type) {
-        case 'string':
-          if (typeof fieldValue !== 'string') return false;
-          break;
-        case 'number':
-          if (typeof fieldValue !== 'number') return false;
-          break;
-        case 'boolean':
-          if (typeof fieldValue !== 'boolean')
-            return false;
-
-
-          break;
-        case 'object':
-          if (typeof fieldValue !== 'object' || Array.isArray(fieldValue)) return false;
-          break;
-        case 'array':
-          if (!Array.isArray(fieldValue)) return false;
-          break;
-        default:
-          return false; // Unknown field type
-      }
-    }
-
-    return true; // All fields are valid
-  } */
 
   public getAppModelFieldType(modelType: string, fieldPath: string): string | undefined {
     const appModelFieldType = Dot.getProperty(this.getSchema(), `${modelType}.${fieldPath}.type`);

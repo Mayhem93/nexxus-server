@@ -8,7 +8,7 @@ import {
   type NexxusAppModelType,
   type NexxusApplicationSchema,
   InvalidJsonPatchException,
-  NexxusJsonPatchType
+  NexxusJsonPatchInternal
 } from '@nexxus/core';
 
 import type { Router, RequestHandler } from 'express';
@@ -19,7 +19,7 @@ interface CreateAppModelRequest extends NexxusApiRequest {
 
 type UpdateAppModelBody = {
   type: string;
-  patch: Omit<NexxusJsonPatchType, 'metadata'>;
+  patch: Omit<NexxusJsonPatchInternal, 'metadata'>;
 }
 
 interface UpdateAppModelRequest extends NexxusApiRequest {

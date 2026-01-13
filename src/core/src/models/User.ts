@@ -10,7 +10,7 @@ export type NexxusUserModelType = INexxusBaseModel<'user'> & {
   appId: string;
   username: string;
   password: string | null;
-  authProvider: string; // auth provider when the user was created; does not change
+  authProviders: Array<string>; // auth provider when the user was created; does not change
   devices: Array<string>; // list of device IDs associated with the user
   details?: Record<string, any>; // application specific user details
 };
@@ -35,8 +35,8 @@ export class NexxusApplicationUser extends NexxusBaseModel<NexxusUserModelType> 
       throw new InvalidUserModelException("User 'password' must be a string if provided");
     }
 
-    if (this.data.authProvider === undefined || typeof this.data.authProvider !== 'string') {
-      throw new InvalidUserModelException("User 'authProvider' is required and must be a string");
+    if (this.data.authProviders === undefined || !Array.isArray(this.data.authProviders) || this.data.authProviders.some(ap => typeof ap !== 'string')) {
+      throw new InvalidUserModelException("User 'authProviders' is required and must be an array of strings");
     }
 
     if (this.data.devices === undefined || !Array.isArray(this.data.devices)) {

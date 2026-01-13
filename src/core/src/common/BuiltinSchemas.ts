@@ -15,7 +15,7 @@ export const NEXXUS_BUILTIN_MODEL_SCHEMAS = {
   user: {
     username: { type: 'string', required: true },
     password: { type: 'string', required: false },
-    authProvider: { type: 'string', required: true },
+    authProviders: { type: 'array', required: true, arrayType: 'string' },
     devices: { type: 'array', required: true, arrayType: 'string' },
     details: { type: 'object', required: false, properties: {} }
   },

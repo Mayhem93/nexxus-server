@@ -15,18 +15,23 @@ export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
 
     passport.use('local', new PassportLocalStrategy(
       {
-        usernameField: 'email',
+        usernameField: 'username',
         passwordField: 'password',
         passReqToCallback: true
       },
-      async (req, email, password, done) => {
+      async (req, username, password, done) => {
         try {
           const appId = req.headers['nxx-app-id'] as string;
-          // Find user by username
-          const user = await this.findUserByUsername(appId, email);
-
+          const app = NexxusApi.getStoredApp(appId);
+          const user = await this.findUserByUsername(appId, username);
           if (!user) {
             return done(null, false, new UserAuthenticationFailedException('Invalid credentials'));
+          }
+
+          if (!user.getData().authProviders.includes('local') && app?.getData().allowMultipleLogin === false) {
+            return done(null, false, new UserAuthenticationFailedException(
+              'User not registered for local authentication and multiple login is disabled'
+            ));
           }
 
           // Verify password
@@ -50,6 +55,10 @@ export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
 
       if (!user) {
         NexxusApi.logger.debug(`Local authentication failed: ${info.message}`, 'AuthStrategy');
+
+        if (info.message === 'Missing credentials') {
+          throw new UserAuthenticationFailedException('Username and password are required');
+        }
 
         throw new UserAuthenticationFailedException('Authentication failed');
       }

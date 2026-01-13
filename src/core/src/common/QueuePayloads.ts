@@ -1,5 +1,5 @@
 import { NexxusAppModelType } from '../models/AppModel';
-import { NexxusJsonPatchType } from '../common/JsonPatch';
+import { NexxusJsonPatchInternal } from '../common/JsonPatch';
 
 export interface NexxusBaseQueuePayload {
   event: string;
@@ -7,7 +7,7 @@ export interface NexxusBaseQueuePayload {
 }
 
 export type NexxusModelCreatedPayload = { event: 'model_created'; data: NexxusAppModelType; };
-export type NexxusModelUpdatedPayload = { event: 'model_updated'; data: NexxusJsonPatchType; };
+export type NexxusModelUpdatedPayload = { event: 'model_updated'; data: NexxusJsonPatchInternal; };
 
 export type NexxusModelDeletedData = Pick<NexxusAppModelType, 'id' | 'type' | 'appId' | 'userId'>;
 export type NexxusModelDeletedPayload = { event: 'model_deleted'; data: NexxusModelDeletedData; };

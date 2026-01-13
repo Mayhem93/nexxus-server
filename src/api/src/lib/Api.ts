@@ -62,7 +62,7 @@ export interface NexxusApiRequest extends Express.Request {
   user?: NexxusApiUser;
 }
 
-export type NexxusApiUser = Pick<NexxusUserModelType, | 'username' | 'authProvider' | 'details' | 'appId'> & {
+export type NexxusApiUser = Pick<NexxusUserModelType, | 'username' | 'authProviders' | 'details' | 'appId'> & {
   id: string;
   iat?: number;
   exp?: number;
@@ -312,7 +312,7 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
     const results = await NexxusApi.database.searchItems({ type: MODEL_REGISTRY.application });
 
     for (let app of results) {
-      NexxusApi.loadedApps.set(app.getData().id as string, app as NexxusApplication);
+      NexxusApi.loadedApps.set(app.getData().id as string, app);
     }
 
     NexxusApi.logger.info(`Loaded ${NexxusApi.loadedApps.size} applications into API service`, NexxusApi.loggerLabel);

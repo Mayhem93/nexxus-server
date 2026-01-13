@@ -7,19 +7,16 @@ import type {
   NexxusObjectFieldDef,
   NexxusArrayFieldDef,
   NexxusModelPrimitiveType,
-  NexxusModelFieldType
+  NexxusModelFieldType,
+  PrimitiveFieldDef
 } from '../common/ModelTypes';
 import {
-  isBuiltinModel,
   NexxusBuiltinModelType,
   NEXXUS_BUILTIN_MODEL_SCHEMAS,
   NEXXUS_UNIVERSAL_FIELDS
 } from './BuiltinSchemas';
 import type { NexxusUserDetailSchema } from '../models/User';
-import { NexxusAppModelType } from '../models/AppModel';
 import { InvalidJsonPatchException } from '../lib/Exceptions';
-
-import dot from 'dot-prop';
 
 const JSON_OPS = [
   'replace',
@@ -27,28 +24,122 @@ const JSON_OPS = [
   'prepend'
 ] as const;
 
-export type NexxusJsonPatchType = {
-  op: typeof JSON_OPS[number],
-  path: string[], // as opposed to the JSONPatch standard, we are using "." for path separation instead of "/"
-  value: any[],
-  metadata: NexxusJsonPatchMetadata
+export type NexxusJsonPatchConstructor = {
+  op: typeof JSON_OPS[number];
+  path: string[];
+  value: any[];
+  metadata: NexxusJsonPatchMetadata;
 };
 
 export type NexxusJsonPatchMetadata = {
   appId: string;
   id: string;
   type: string;
-  pathFieldTypes?: NexxusModelFieldType[]; // types of each path field, for easier validation
 };
+
+export type NexxusJsonPatchInternal = {
+  op: typeof JSON_OPS[number];
+  path: string[];
+  value: any[];
+  metadata: NexxusJsonPatchMetadataInternal;
+};
+
+
+type NexxusJsonPatchMetadataInternal = NexxusJsonPatchMetadata & {
+  pathFieldTypes: NexxusModelFieldType[]; // types of each path field, for easier validation
+};
+
+export type NexxusJsonPatchMetadataConstructor = Omit<NexxusJsonPatchMetadata, 'pathFieldTypes'>;
 
 export type NexxusJsonPatchValidationConfig =
   | { appSchema: NexxusApplicationSchema }  // For app-defined models
   | { modelType: NexxusBuiltinModelType, userDetailsSchema?: NexxusUserDetailSchema }; // For built-in models (user, application)
 
+type OperationRule = {
+  allowedTypes: NexxusModelFieldType[];
+  validateValue: (value: any, fieldDef: NexxusFieldDef, path: string) => void;
+};
+
 export class NexxusJsonPatch {
   private valid: boolean = false;
+  private fullPatch: NexxusJsonPatchInternal;
 
-  constructor(private fullPatch: NexxusJsonPatchType) {
+  private static readonly OPERATION_RULES: Record<typeof JSON_OPS[number], OperationRule> = {
+    replace: {
+      allowedTypes: ['string', 'number', 'boolean', 'date', 'object', 'array'],
+      validateValue: (value: any, fieldDef: NexxusFieldDef, path: string) => {
+        NexxusJsonPatch.validateAgainstType(value, fieldDef, path);
+      }
+    },
+    append: {
+      allowedTypes: ['array', 'string'],
+      validateValue: (value: any, fieldDef: NexxusFieldDef, path: string) => {
+        if (fieldDef.type === 'array') {
+          const arrayFieldDef = fieldDef as NexxusArrayFieldDef;
+
+          if (arrayFieldDef.arrayType === 'object') {
+            if (!arrayFieldDef.properties) {
+              throw new InvalidJsonPatchException(`Array of objects at "${path}" is missing properties definition`);
+            }
+
+            const objFieldDef: NexxusObjectFieldDef = {
+              type: 'object',
+              properties: arrayFieldDef.properties,
+              required: false
+            };
+
+            NexxusJsonPatch.validateAgainstType(value, objFieldDef, path);
+          } else {
+            const primitiveFieldDef: PrimitiveFieldDef = {
+              type: arrayFieldDef.arrayType,
+              required: false
+            };
+
+            NexxusJsonPatch.validateAgainstType(value, primitiveFieldDef, path);
+          }
+        } else if (fieldDef.type === 'string') {
+          if (typeof value !== 'string') {
+            throw new InvalidJsonPatchException(`Value for append at path "${path}" must be a string`);
+          }
+        }
+      }
+    },
+    prepend: {
+      allowedTypes: ['array', 'string'],
+      validateValue: (value: any, fieldDef: NexxusFieldDef, path: string) => {
+        if (fieldDef.type === 'array') {
+          const arrayFieldDef = fieldDef as NexxusArrayFieldDef;
+
+          if (arrayFieldDef.arrayType === 'object') {
+            if (!arrayFieldDef.properties) {
+              throw new InvalidJsonPatchException(`Array of objects at "${path}" is missing properties definition`);
+            }
+
+            const objFieldDef: NexxusObjectFieldDef = {
+              type: 'object',
+              properties: arrayFieldDef.properties,
+              required: false
+            };
+
+            NexxusJsonPatch.validateAgainstType(value, objFieldDef, path);
+          } else {
+            const primitiveFieldDef: PrimitiveFieldDef = {
+              type: arrayFieldDef.arrayType,
+              required: false
+            };
+
+            NexxusJsonPatch.validateAgainstType(value, primitiveFieldDef, path);
+          }
+        } else if (fieldDef.type === 'string') {
+          if (typeof value !== 'string') {
+            throw new InvalidJsonPatchException(`Value for prepend at path "${path}" must be a string`);
+          }
+        }
+      }
+    }
+  };
+
+  constructor(fullPatch: NexxusJsonPatchConstructor) {
     if (!fullPatch || typeof fullPatch !== 'object' || Array.isArray(fullPatch)) {
       throw new InvalidJsonPatchException(`Invalid patch format`);
     }
@@ -72,10 +163,10 @@ export class NexxusJsonPatch {
       throw new InvalidJsonPatchException(`Patch metadata must include id`);
     }
 
-    this.fullPatch.metadata.pathFieldTypes = [];
+    this.fullPatch = { ...fullPatch, metadata: { ...fullPatch.metadata, pathFieldTypes: [] } };
   }
 
-  public get(): NexxusJsonPatchType {
+  public get(): NexxusJsonPatchInternal {
     if (!this.valid) {
       throw new InvalidJsonPatchException('Cannot get JSON Patch before validation');
     }
@@ -93,13 +184,6 @@ export class NexxusJsonPatch {
 
     // Determine which schema to use
     if ('appSchema' in config) {
-      /* // App-defined model: get from app schema and add updatedAt
-      if (!('appSchema' in config)) {
-        throw new InvalidJsonPatchException(
-          `Model type "${modelType}" is not built-in, but no app schema provided`
-        );
-      } */
-
       const appModelSpec = config.appSchema[modelType];
 
       if (!appModelSpec) {
@@ -128,10 +212,14 @@ export class NexxusJsonPatch {
           modelSpec.details = { type: 'object', properties: config.userDetailsSchema!, required: false };
 
           break;
+        case 'application':
+          break;
         default:
           throw new InvalidJsonPatchException(`Unsupported built-in model type: ${config.modelType}`);
       }
     }
+
+    const operationRule = NexxusJsonPatch.OPERATION_RULES[this.fullPatch.op];
 
     // Validate each path/value pair
     for (let i = 0; i < this.fullPatch.path.length; i++) {
@@ -147,26 +235,107 @@ export class NexxusJsonPatch {
         );
       }
 
-      // For append/prepend operations, ensure field is array or string
-      if (this.fullPatch.op === 'append' || this.fullPatch.op === 'prepend') {
-        if (fieldDef.type !== 'array' && fieldDef.type !== 'string') {
-          throw new InvalidJsonPatchException(
-            `Cannot ${this.fullPatch.op} to path "${currentPath}" - must be array or string type`
-          );
-        }
-      }
-
-      // Recursively validate value matches field type
-      if (!NexxusJsonPatch.validateValueType(currentValue, fieldDef, currentPath)) {
+      // Check if operation is allowed on this field type
+      if (!operationRule.allowedTypes.includes(fieldDef.type)) {
         throw new InvalidJsonPatchException(
-          `Value at path "${currentPath}" has invalid type`
+          `Operation "${this.fullPatch.op}" not allowed on type "${fieldDef.type}" at path "${currentPath}"`
         );
       }
 
-      this.fullPatch.metadata.pathFieldTypes!.push(fieldDef.type);
+      // Validate value according to operation rules
+      operationRule.validateValue(currentValue, fieldDef, currentPath);
+
+      this.fullPatch.metadata.pathFieldTypes.push(fieldDef.type);
     }
 
     this.valid = true;
+  }
+
+  private static validateAgainstType(
+    value: any,
+    fieldDef: NexxusFieldDef,
+    path: string
+  ): void {
+    switch (fieldDef.type) {
+      case 'string':
+        if (typeof value !== 'string') {
+          throw new InvalidJsonPatchException(`Expected string at path: ${path}`);
+        }
+        break;
+
+      case 'number':
+        if (typeof value !== 'number' || isNaN(value)) {
+          throw new InvalidJsonPatchException(`Expected number at path: ${path}`);
+        }
+        break;
+
+      case 'boolean':
+        if (typeof value !== 'boolean') {
+          throw new InvalidJsonPatchException(`Expected boolean at path: ${path}`);
+        }
+        break;
+
+      case 'date':
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+          throw new InvalidJsonPatchException(`Expected valid date at path: ${path}`);
+        }
+        break;
+
+      case 'object':
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+          throw new InvalidJsonPatchException(`Expected object at path: ${path}`);
+        }
+
+        if (NexxusJsonPatch.isObjectFieldDef(fieldDef)) {
+          for (const [key, propDef] of Object.entries(fieldDef.properties)) {
+            if (propDef.required && !(key in value)) {
+              throw new InvalidJsonPatchException(`Required field missing: ${path}.${key}`);
+            }
+
+            if (key in value) {
+              NexxusJsonPatch.validateAgainstType(value[key], propDef, `${path}.${key}`);
+            }
+          }
+        }
+        break;
+
+      case 'array':
+        if (!Array.isArray(value)) {
+          throw new InvalidJsonPatchException(`Expected array at path: ${path}`);
+        }
+
+        if (NexxusJsonPatch.isArrayFieldDef(fieldDef)) {
+          value.forEach((element, index) => {
+            const elementPath = `${path}[${index}]`;
+
+            if (fieldDef.arrayType === 'object') {
+              if (!fieldDef.properties) {
+                throw new InvalidJsonPatchException(`Array of objects at "${path}" is missing properties definition`);
+              }
+
+              const objFieldDef: NexxusObjectFieldDef = {
+                type: 'object',
+                properties: fieldDef.properties,
+                required: false
+              };
+
+              NexxusJsonPatch.validateAgainstType(element, objFieldDef, elementPath);
+            } else {
+              const primitiveFieldDef: PrimitiveFieldDef = {
+                type: fieldDef.arrayType,
+                required: false
+              };
+
+              NexxusJsonPatch.validateAgainstType(element, primitiveFieldDef, elementPath);
+            }
+          });
+        }
+        break;
+
+      default:
+        throw new InvalidJsonPatchException(`Unknown field type at path: ${path}`);
+    }
   }
 
   private static traverseSchema(
@@ -200,7 +369,7 @@ export class NexxusJsonPatch {
 
         // For arrays of objects, traverse into the object properties
         if (arrDef.arrayType === 'object' && 'properties' in arrDef) {
-          current = (arrDef as any).properties;
+          current = arrDef.properties!;
         } else {
           // Can't traverse further into primitive arrays
           return null;
@@ -272,19 +441,20 @@ export class NexxusJsonPatch {
     if (typeof value !== 'boolean') {
       throw new InvalidJsonPatchException(`Value at path "${path}" must be a boolean`);
     }
+
     return true;
   }
 
   /**
    * Validate date type
    */
-  private static validateDate(value: any, path: string): boolean {
-    const isValid = value instanceof Date ||
-      (typeof value === 'string' && !isNaN(Date.parse(value)) || typeof value === 'number' && !isNaN(new Date(value).getTime()));
+  private static validateDate(value: string | number, path: string): boolean {
+    const isValid = typeof value === 'string' && !isNaN(Date.parse(value)) || typeof value === 'number' && !isNaN(new Date(value).getTime());
 
     if (!isValid) {
       throw new InvalidJsonPatchException(`Value at path "${path}" must be a valid date`);
     }
+
     return true;
   }
 
@@ -369,5 +539,13 @@ export class NexxusJsonPatch {
       default:
         throw new InvalidJsonPatchException(`Unknown primitive type "${type}" at path "${path}"`);
     }
+  }
+
+  private static isObjectFieldDef(fieldDef: NexxusFieldDef): fieldDef is NexxusObjectFieldDef {
+    return fieldDef.type === 'object';
+  }
+
+  private static isArrayFieldDef(fieldDef: NexxusFieldDef): fieldDef is NexxusArrayFieldDef {
+    return fieldDef.type === 'array';
   }
 }

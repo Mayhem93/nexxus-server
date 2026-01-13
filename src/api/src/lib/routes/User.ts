@@ -14,10 +14,16 @@ import {
   AppExistsMiddleware,
   AuthMiddleware
 } from '../middlewares';
+import { NexxusAuthStrategy } from '../auth';
+
+import {
+  InvalidJsonPatchException,
+  NexxusJsonPatch,
+  NexxusJsonPatchInternal,
+  NexxusUserModelType
+} from '@nexxus/core';
 
 import type { Router, RequestHandler } from 'express';
-import { InvalidJsonPatchException, NexxusJsonPatch, NexxusJsonPatchType, NexxusUserModelType } from '@nexxus/core';
-import { NexxusAuthStrategy } from '../auth';
 
 type UserRegisterRequestBody = {
   username: string;
@@ -26,7 +32,7 @@ type UserRegisterRequestBody = {
 };
 
 type UserUpdateRequestBody = {
-  patch: Omit<NexxusJsonPatchType, 'metadata'>;
+  patch: Omit<NexxusJsonPatchInternal, 'metadata'>;
 }
 
 interface UserRegisterRequest extends NexxusApiRequest {
@@ -49,10 +55,6 @@ export default class UserRoute extends NexxusApiBaseRoute {
     this.router.post('/register',
       this.register.bind(this) as RequestHandler
     );
-    this.router.post('/login',
-      this.login.bind(this) as RequestHandler
-    );
-
     this.router.get('/me',
       AuthMiddleware as RequestHandler,
       this.me.bind(this) as RequestHandler
@@ -97,7 +99,7 @@ export default class UserRoute extends NexxusApiBaseRoute {
     const user = await localStrategy.createUser(appId, {
       username,
       password,
-      authProvider: 'local',
+      authProviders: ['local'],
       details: additionalFields
     });
 
@@ -118,14 +120,32 @@ export default class UserRoute extends NexxusApiBaseRoute {
     const appId = req.headers['nxx-app-id'] as string;
     const app = NexxusApi.getStoredApp(appId);
 
-    // find if password is being updated
-    // TODO: need to validate patch before this step to avoid potential issues
+    // find if password is being updated and add local auth strategy to array
     const passwordUpdateIndex = req.body.patch.path.findIndex(p => p === 'password');
+    let authProvidersPatch: NexxusJsonPatch | undefined;
 
     if (passwordUpdateIndex !== -1) {
+      if (app?.getData().allowMultipleLogin === false && !req.user!.authProviders.includes('local')) {
+        throw new InvalidParametersException('Password update not allowed when multiple login is disabled');
+      }
+
       req.body.patch.value[passwordUpdateIndex] = NexxusAuthStrategy.hashPassword(req.body.patch.value[passwordUpdateIndex]);
+
+      if (!req.user!.authProviders.includes('local')) {
+        authProvidersPatch = new NexxusJsonPatch({
+          op: 'append',
+          path: ['authProviders'],
+          value: ['local'],
+          metadata: {
+            appId,
+            id: req.user!.id,
+            type: 'user'
+          }
+        });
+      }
     }
 
+    const patches = [];
     const jsonPatch = new NexxusJsonPatch({
       ...req.body.patch,
       metadata: {
@@ -134,11 +154,30 @@ export default class UserRoute extends NexxusApiBaseRoute {
         type: 'user'
       }
     });
+    const updatedAtPatch = new NexxusJsonPatch({
+      op: 'replace',
+      path: ['updatedAt'],
+      value: [ new Date() ],
+      metadata: {
+        appId,
+        id: req.user!.id,
+        type: 'user'
+      }
+    });
+
+    patches.push(jsonPatch);
+    patches.push(updatedAtPatch);
 
     try {
-      jsonPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
+      if (authProvidersPatch) {
+        authProvidersPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
+        patches.push(authProvidersPatch);
+      }
 
-      await NexxusApi.database.updateItems([ jsonPatch ]);
+      jsonPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
+      updatedAtPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
+
+      await NexxusApi.database.updateItems(patches);
 
       res.status(200).json({ message: 'User updated successfully' });
     } catch (e) {
@@ -149,6 +188,4 @@ export default class UserRoute extends NexxusApiBaseRoute {
       throw e;
     }
   }
-
-  private async login(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {}
 }
