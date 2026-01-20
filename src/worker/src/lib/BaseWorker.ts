@@ -67,8 +67,8 @@ export abstract class NexxusBaseWorker<T extends NexxusConfig, Ev extends Nexxus
   }
 
   public async init() : Promise<void> {
-    await NexxusBaseWorker.messageQueue.consumeMessages(this.queueName, this.processMessage.bind(this) as any);
     await NexxusBaseWorker.loadApps();
+    await NexxusBaseWorker.messageQueue.consumeMessages(this.queueName, this.processMessage.bind(this) as any);
   }
 
   protected async publish<Q extends NexxusQueueName>(

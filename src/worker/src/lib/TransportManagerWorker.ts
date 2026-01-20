@@ -118,12 +118,13 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
   }
 
   private async handleModelUpdated(data: NexxusModelUpdatedPayload['data']): Promise<void> {
+    const patchInstances = data.map(patchData => new NexxusJsonPatch(patchData));
     const devices = await this.getDevicesFromGeneratedChannels({
-      appId: data.metadata.appId,
-      userId: undefined, //TODO: fix this when we implement user model
-      model: data.metadata.type,
-      modelId: data.metadata.id
-    }, data);
+      appId: data[0].metadata.appId,
+      userId: data[0].metadata.userId,
+      model: data[0].metadata.type,
+      modelId: data[0].metadata.id
+    }, patchInstances);
     const transportToDeviceMap: Map<NexxusQueueName, Set<string>> = new Map();
 
     for (const device of devices) {
@@ -147,7 +148,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
       });
 
       NexxusTransportManagerWorker.logger.debug(
-        `Notifying ${deviceSet.size} devices about update to model ID: "${data.metadata.id}" via transport: "${transport}"`,
+        `Notifying ${deviceSet.size} devices about update to model ID: "${data[0].metadata.id}" via transport: "${transport}"`,
         NexxusTransportManagerWorker.loggerLabel
       );
     }
@@ -156,7 +157,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
   private async handleModelDeleted(data: NexxusModelDeletedPayload['data']): Promise<void> {
     const devices = await this.getDevicesFromGeneratedChannels({
       appId: data.appId,
-      userId: undefined, //TODO: fix this when we implement user model
+      userId: data.userId,
       model: data.type,
       modelId: data.id
     });
@@ -189,7 +190,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     }
   }
 
-  private async getDevicesFromGeneratedChannels<T = Partial<NexxusAppModelType> | NexxusJsonPatch>(channel: NexxusBaseSubscriptionChannel, change?: T): Promise<Set<NexxusDeviceTransportString>> {
+  private async getDevicesFromGeneratedChannels<T>(channel: NexxusBaseSubscriptionChannel, change?: T | T[]): Promise<Set<NexxusDeviceTransportString>> {
     const allDevices = new Set<NexxusDeviceTransportString>();
     const appSchema = NexxusTransportManagerWorker.loadedApps.get(channel.appId)?.getData().schema;
 
@@ -201,6 +202,11 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
 
       return allDevices;
     }
+
+    // Normalize change to array for consistent processing
+    const changes = change !== undefined
+      ? (Array.isArray(change) ? change : [change])
+      : [];
 
     // Step 1: Generate all base channels (without filters)
     const baseChannels = NexxusRedisSubscription.generateSubscriptionPatterns(channel);
@@ -217,23 +223,29 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
         NexxusTransportManagerWorker.loggerLabel
       );
 
-      // if change is undefined (e.g., model deleted), skip filtered subscriptions
-      if (change !== undefined) {
+      // If no changes (e.g., model deleted), skip filtered subscriptions
+      if (changes.length > 0) {
         // Step 2: Get all filters for this channel
         const filters = await NexxusRedisSubscription.getAllFilters(channel);
 
-        // Step 3: For each filter, get devices from filtered subscription
+        // Step 3: For each filter, test if ANY change matches
         for (const [filterId, filterQuery] of Object.entries(filters)) {
           const filter = new NexxusFilterQuery(filterQuery, { appModelDef: appSchema[channel.model] });
-          let objectChange : Partial<NexxusAppModelType>;
 
-          if (change instanceof NexxusJsonPatch) { //update via JsonPatch
-            objectChange = change.getPartialModel();
-          } else { // create via AppModel
-            objectChange = change as Partial<NexxusAppModelType>;
-          }
+          // Test if ANY change matches the filter
+          const matchesFilter = changes.some(singleChange => {
+            let objectChange: Partial<NexxusAppModelType>;
 
-          if (filter.test(objectChange)) {
+            if (singleChange instanceof NexxusJsonPatch) {
+              objectChange = singleChange.getPartialModel();
+            } else {
+              objectChange = singleChange as Partial<NexxusAppModelType>;
+            }
+
+            return filter.test(objectChange);
+          });
+
+          if (matchesFilter) {
             const filteredSub = new NexxusRedisSubscription(channel, filterId);
             const filteredDevices = await filteredSub.getAllDevices();
 

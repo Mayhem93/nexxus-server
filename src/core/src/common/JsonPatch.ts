@@ -10,6 +10,7 @@ import type {
   NexxusModelFieldType,
   PrimitiveFieldDef
 } from '../common/ModelTypes';
+import { NexxusAppModelType } from '../models/AppModel';
 import {
   NexxusBuiltinModelType,
   NEXXUS_BUILTIN_MODEL_SCHEMAS,
@@ -17,6 +18,8 @@ import {
 } from './BuiltinSchemas';
 import type { NexxusUserDetailSchema } from '../models/User';
 import { InvalidJsonPatchException } from '../lib/Exceptions';
+
+import * as dot from 'dot-prop';
 
 const JSON_OPS = [
   'replace',
@@ -35,6 +38,7 @@ export type NexxusJsonPatchMetadata = {
   appId: string;
   id: string;
   type: string;
+  userId?: string;
 };
 
 export type NexxusJsonPatchInternal = {
@@ -46,7 +50,7 @@ export type NexxusJsonPatchInternal = {
 
 
 type NexxusJsonPatchMetadataInternal = NexxusJsonPatchMetadata & {
-  pathFieldTypes: NexxusModelFieldType[]; // types of each path field, for easier validation
+  pathFieldTypes?: NexxusModelFieldType[]; // types of each path field, for easier validation
 };
 
 export type NexxusJsonPatchMetadataConstructor = Omit<NexxusJsonPatchMetadata, 'pathFieldTypes'>;
@@ -139,7 +143,7 @@ export class NexxusJsonPatch {
     }
   };
 
-  constructor(fullPatch: NexxusJsonPatchConstructor) {
+  constructor(fullPatch: NexxusJsonPatchConstructor | NexxusJsonPatchInternal) {
     if (!fullPatch || typeof fullPatch !== 'object' || Array.isArray(fullPatch)) {
       throw new InvalidJsonPatchException(`Invalid patch format`);
     }
@@ -176,6 +180,24 @@ export class NexxusJsonPatch {
 
   public isValid(): boolean {
     return this.valid;
+  }
+
+  public getPartialModel(): Partial<NexxusAppModelType> {
+    const partialModel: Partial<NexxusAppModelType> = {
+      id: this.fullPatch.metadata.id,
+      type: this.fullPatch.metadata.type,
+      appId: this.fullPatch.metadata.appId
+    };
+
+    for (let i = 0; i < this.fullPatch.path.length; i++) {
+      const path = this.fullPatch.path[i];
+      const value = this.fullPatch.value[i];
+
+      // Set value at path in partialModel
+      dot.setProperty(partialModel, path, value);
+    }
+
+    return partialModel;
   }
 
   public validate(config: NexxusJsonPatchValidationConfig): void {
@@ -244,6 +266,10 @@ export class NexxusJsonPatch {
 
       // Validate value according to operation rules
       operationRule.validateValue(currentValue, fieldDef, currentPath);
+
+      if (!this.fullPatch.metadata.pathFieldTypes) {
+        this.fullPatch.metadata.pathFieldTypes = [];
+      }
 
       this.fullPatch.metadata.pathFieldTypes.push(fieldDef.type);
     }

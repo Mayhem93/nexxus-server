@@ -94,13 +94,14 @@ export default class ModelRoute extends NexxusApiBaseRoute {
         metadata: {
           appId,
           id: req.params.id,
-          type: req.body.type
+          type: req.body.type,
+          userId: req.user?.id
         }
       });
 
       jsonPatch.validate({ appSchema });
 
-      await NexxusApi.messageQueue.publishMessage('writer', { event: 'model_updated', data: jsonPatch.get() });
+      await NexxusApi.messageQueue.publishMessage('writer', { event: 'model_updated', data: [ jsonPatch.get() ] });
 
       res.status(202).send({ message: 'Model updated successfully!' });
     } catch (error) {

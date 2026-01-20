@@ -21,6 +21,7 @@ export type NexxusDatabaseAdapterEvents = {
 
 export interface NexxusDbSearchOptions<T extends NexxusModelTypeName | string = string> {
   type: T;
+  id?: string;
   appId?: string;
   filter?: NexxusFilterQuery;
   limit?: number;

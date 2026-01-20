@@ -10,6 +10,7 @@ enum ApiExceptions {
   INVALID_AUTH_METHOD = "InvalidAuthMethodException",
   NO_AUTH_PRESENT = "NoAuthPresentException",
   USER_AUTH_FAILED = "UserAuthenticationFailedException",
+  USER_TOKEN_EXPIRED = "UserTokenExpiredException",
   USER_ALREADY_EXISTS = "UserAlreadyExistsException"
 };
 
@@ -89,6 +90,14 @@ export class NoAuthPresentException extends NexxusApiException {
 
   constructor(message: string) {
     super(ApiExceptions.NO_AUTH_PRESENT, message);
+  }
+}
+
+export class UserTokenExpiredException extends NexxusApiException {
+  public readonly statusCode = 401;
+
+  constructor(message: string) {
+    super(ApiExceptions.USER_TOKEN_EXPIRED, message);
   }
 }
 

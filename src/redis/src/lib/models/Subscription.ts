@@ -83,7 +83,7 @@ export class NexxusRedisSubscription {
         filterId = parts[i + 1];
         i += 2;
       } else {
-        // It's the modelId (appears right after model, before any keywords)
+        // It's the modelId (appears right after model type identifier, before any keywords)
         modelId = part;
         i += 1;
       }
@@ -239,7 +239,7 @@ export class NexxusRedisSubscription {
     let key = `${NEXXUS_PREFIX_LC}:subscription-partitions:${this.channel.appId}:${this.channel.model}`;
 
     if (this.channel.modelId) {
-      key += `:model:${this.channel.modelId}`;
+      key += `:${this.channel.modelId}`;
     }
 
     if (this.channel.userId && !this.channel.modelId) {

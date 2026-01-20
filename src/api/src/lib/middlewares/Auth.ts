@@ -6,7 +6,8 @@ import {
 } from '../Api';
 import {
   UserAuthenticationFailedException,
-  NoAuthPresentException
+  NoAuthPresentException,
+  UserTokenExpiredException
 } from '../Exceptions';
 
 import jwt from 'jsonwebtoken';
@@ -27,11 +28,18 @@ export default (req: NexxusApiRequest, res: NexxusApiResponse, next: NextFunctio
     throw new NoAuthPresentException('No token provided');
   }
 
-  req.user = jwt.verify(token, apiConfig.auth?.jwtSecret as string) as NexxusApiUser; // Attach user info to request
+  try {
+    req.user = jwt.verify(token, apiConfig.auth?.jwtSecret as string) as NexxusApiUser; // Attach user info to request
 
-  if (req.user) {
-    return next();
+    next();
+  } catch (e) {
+    switch (e.name) {
+      case 'TokenExpiredError':
+        throw new UserTokenExpiredException('Token has expired');
+      case 'JsonWebTokenError':
+        throw new UserAuthenticationFailedException('Invalid token');
+      default:
+        throw e;
+    }
   }
-
-  throw new UserAuthenticationFailedException('Invalid or expired token');
 };

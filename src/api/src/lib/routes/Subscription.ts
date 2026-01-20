@@ -32,6 +32,7 @@ import type { Router, RequestHandler } from 'express';
 type SubscribeRequestBody = {
   model: string;
   userId?: string;
+  id?: string;
   filter?: NexxusFilterQueryType;
   getOnly?: boolean;
   limit?: number;
@@ -67,9 +68,9 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
 
   private async subscribe(req: SubscribeRequest, res: NexxusApiResponse): Promise<void> {
     const appId = req.headers['nxx-app-id'] as string;
-    const appSchema = NexxusApi.getStoredApp(appId)!.getData().schema;
+    const app = NexxusApi.getStoredApp(appId);
+    const appSchema = app!.getData().schema;
     const deviceId = req.headers['nxx-device-id'] as string;
-    let filterQuery : NexxusFilterQuery | undefined;
 
     if (!req.body.model || typeof req.body.model !== 'string') {
       throw new InvalidParametersException('Invalid model parameter');
@@ -79,8 +80,18 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
       throw new ModelNotFoundException(`Model "${req.body.model}" not found in application "${appId}"`);
     }
 
+    if (typeof req.body.id !== 'string' && req.body.id !== undefined) {
+      throw new InvalidParametersException('Invalid modelId parameter');
+    }
+
     if (typeof req.body.userId !== 'string' && req.body.userId !== undefined) {
       throw new InvalidParametersException('Invalid userId parameter');
+    } else if (NexxusApi.instance.getConfig().auth === undefined) {
+      throw new InvalidParametersException('userId parameter cannot be used when authentication is disabled');
+    }
+
+    if (req.body.id !== undefined && req.body.userId !== undefined) {
+      throw new InvalidParametersException('Redundant modelId and userId parameters provided');
     }
 
     if (req.body.limit === undefined) {
@@ -99,13 +110,21 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
       }
     }
 
+    if (typeof req.body.getOnly !== 'boolean' && req.body.getOnly !== undefined) {
+      throw new InvalidParametersException('Invalid getOnly parameter');
+    }
+
+    req.body.getOnly = req.body.getOnly || false;
+
+    let subscriptionFilter: NexxusFilterQuery | undefined;
+
     if (req.body.filter !== undefined) {
       if (typeof req.body.filter !== 'object') {
         throw new InvalidParametersException('Invalid filter parameter');
       }
 
       try {
-        filterQuery = new NexxusFilterQuery(req.body.filter, { appModelDef: appSchema[req.body.model] });
+        subscriptionFilter = new NexxusFilterQuery(req.body.filter, { appModelDef: appSchema[req.body.model] });
       } catch (e) {
         if (e instanceof InvalidQueryFilterException) {
           throw new InvalidParametersException(`Invalid filter parameter: ${e.message}`);
@@ -115,18 +134,32 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
       }
     }
 
-    if (typeof req.body.getOnly !== 'boolean' && req.body.getOnly !== undefined) {
-      throw new InvalidParametersException('Invalid getOnly parameter');
-    }
+    let databaseFilter: NexxusFilterQuery | undefined;
 
-    req.body.getOnly = req.body.getOnly || false;
+    if (req.body.filter !== undefined || req.body.id !== undefined || req.body.userId !== undefined) {
+      const dbFilterInput: NexxusFilterQueryType = {
+        ...structuredClone(req.body.filter || {}),
+        ...(req.body.id && { id: req.body.id }),
+        ...(req.body.userId && { userId: req.body.userId })
+      };
+
+      try {
+        databaseFilter = new NexxusFilterQuery(dbFilterInput, { appModelDef: appSchema[req.body.model] });
+      } catch (e) {
+        if (e instanceof InvalidQueryFilterException) {
+          throw new InvalidParametersException(`Invalid filter parameter: ${e.message}`);
+        }
+        throw e;
+      }
+    }
 
     if (req.body.getOnly === false) {
       const sub = new NexxusRedisSubscription({
         appId,
         model: req.body.model,
+        modelId: req.body.id,
         userId: req.body.userId,
-        filter: filterQuery
+        filter: subscriptionFilter
       });
 
       try {
@@ -147,7 +180,7 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
     const results = (await NexxusApi.database.searchItems({
       appId,
       type: req.body.model,
-      filter: filterQuery,
+      filter: databaseFilter,
       limit: req.body.limit,
       offset: req.body.offset
     })).map(item => item.getData());

@@ -180,20 +180,20 @@ export class NexxusWebsocketsTransportWorker extends NexxusBaseWorker<NexxusWebs
     try {
       if (!nxxWsClient) {
         return;
-      } else {
-        deviceId = nxxWsClient.getDeviceId();
-
-        if (deviceId) {
-          this.registeredClients.delete(deviceId);
-
-          await NexxusDevice.removeAllSubscriptions(deviceId);
-          await NexxusDevice.update(deviceId, { lastSeen: new Date(), connectedTo: null, status: 'offline' });
-        } else {
-          this.unregisteredClients.delete(nxxWsClient);
-        }
-
-        this.wsToNexxusClientMap.delete(ws);
       }
+
+      deviceId = nxxWsClient.getDeviceId();
+
+      if (deviceId) {
+        this.registeredClients.delete(deviceId);
+
+        await NexxusDevice.removeAllSubscriptions(deviceId);
+        await NexxusDevice.update(deviceId, { lastSeen: new Date(), connectedTo: null, status: 'offline' });
+      } else {
+        this.unregisteredClients.delete(nxxWsClient);
+      }
+
+      this.wsToNexxusClientMap.delete(ws);
 
       NexxusWebsocketsTransportWorker.logger.info(
         `Client "${nxxWsClient.id}" disconnected with device ID: "${deviceId || 'null'}. Code ${code}, Reason: "${reason.toString()}"`,

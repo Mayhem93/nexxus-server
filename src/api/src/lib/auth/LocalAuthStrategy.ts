@@ -24,6 +24,7 @@ export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
           const appId = req.headers['nxx-app-id'] as string;
           const app = NexxusApi.getStoredApp(appId);
           const user = await this.findUserByUsername(appId, username);
+
           if (!user) {
             return done(null, false, new UserAuthenticationFailedException('Invalid credentials'));
           }
@@ -34,8 +35,10 @@ export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
             ));
           }
 
+          const passwordHash = user.getData().password;
+
           // Verify password
-          if (!user.getData().password || !NexxusLocalAuthStrategy.verifyPassword(password, user.getData().password as string)) {
+          if (!passwordHash || !NexxusLocalAuthStrategy.verifyPassword(password, passwordHash)) {
             return done(null, false, new UserAuthenticationFailedException('Invalid credentials'));
           }
 

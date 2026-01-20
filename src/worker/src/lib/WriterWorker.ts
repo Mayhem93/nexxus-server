@@ -6,7 +6,8 @@ import {
   NexxusWriterPayload,
   NexxusAppModel,
   NexxusJsonPatch,
-  NexxusBaseQueuePayload
+  NexxusBaseQueuePayload,
+  NexxusJsonPatchInternal
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import {
@@ -52,7 +53,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
         const appModel = new NexxusAppModel(payload.data);
 
-        await NexxusWriterWorker.database.createItems( [ appModel ] );
+        await NexxusWriterWorker.database.createItems([ appModel ]);
 
         this.publish('transport-manager', {
           event: 'model_created',
@@ -62,20 +63,35 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
         break;
       }
       case 'model_updated': {
+        const validatedPatches: Array<NexxusJsonPatchInternal> = [];
 
-        const jsonPatch = new NexxusJsonPatch(payload.data);
-        const updateUpdatedAtPatch = new NexxusJsonPatch({
-          op: 'replace',
-          path: [ 'updatedAt' ],
-          value: [ Math.floor(new Date().getTime() / 1000) ],
-          metadata: jsonPatch.get().metadata
-        });
+        for (const patchData of payload.data) {
+          const appSchema = NexxusWriterWorker.loadedApps.get(patchData.metadata.appId)!.getSchema();
+          const jsonPatch = new NexxusJsonPatch(patchData);
 
-        await NexxusWriterWorker.database.updateItems( [ jsonPatch, updateUpdatedAtPatch ] );
+          jsonPatch.validate({ appSchema });
+
+          const updateUpdatedAtPatch = new NexxusJsonPatch({
+            op: 'replace',
+            path: ['updatedAt'],
+            value: [Math.floor((new Date().getTime()) / 1000)],
+            metadata: jsonPatch.get().metadata
+          });
+
+          updateUpdatedAtPatch.validate({ appSchema });
+
+          await NexxusWriterWorker.database.updateItems([jsonPatch, updateUpdatedAtPatch]);
+
+          const transformedPatchData = jsonPatch.get();
+
+          delete transformedPatchData.metadata.pathFieldTypes; // Remove pathFieldTypes before sending to Transport Manager
+
+          validatedPatches.push(transformedPatchData);
+        }
 
         this.publish('transport-manager', {
           event: 'model_updated',
-          data: jsonPatch.get(),
+          data: validatedPatches,
         });
 
         break;
@@ -83,7 +99,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
       case 'model_deleted': {
         const appModel = new NexxusAppModel(payload.data);
 
-        await NexxusWriterWorker.database.deleteItems([ appModel ] );
+        await NexxusWriterWorker.database.deleteItems([ appModel ]);
 
         this.publish('transport-manager', {
           event: 'model_deleted',

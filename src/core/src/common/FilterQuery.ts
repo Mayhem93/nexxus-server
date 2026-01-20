@@ -2,7 +2,6 @@ import {
   InvalidQueryFilterException
 } from '../lib/Exceptions';
 import type {
-  NexxusModelPrimitiveType,
   NexxusArrayFieldDef,
   NexxusFieldDef,
   NexxusModelDef
@@ -56,7 +55,7 @@ type FilterNodeWithContext = FilterNode & {
 };
 
 export type NexxusFilterQueryConfig =
-  | { appModelDef: NexxusModelDef }  // For app-defined models
+  | { appModelDef: NexxusModelDef}  // For app-defined models
   | { modelType: NexxusBuiltinModelType, userDetailsSchema?: NexxusUserDetailSchema }; // For built-in models (user, application)
 
 export class NexxusFilterQuery {
@@ -70,7 +69,7 @@ export class NexxusFilterQuery {
     // Determine which schema to use and merge with universal fields
     if ('appModelDef' in config) {
       // Merge universal fields + app model fields
-      this.modelDef = { ...NEXXUS_UNIVERSAL_FIELDS, ...config.appModelDef };
+      this.modelDef = { ...NEXXUS_UNIVERSAL_FIELDS, ...config.appModelDef, ...{ userId: { type: 'string', required: false } } };
     } else {
       // Merge universal fields + built-in model schema
       const builtinSchema = NEXXUS_BUILTIN_MODEL_SCHEMAS[config.modelType];

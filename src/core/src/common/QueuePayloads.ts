@@ -7,7 +7,7 @@ export interface NexxusBaseQueuePayload {
 }
 
 export type NexxusModelCreatedPayload = { event: 'model_created'; data: NexxusAppModelType; };
-export type NexxusModelUpdatedPayload = { event: 'model_updated'; data: NexxusJsonPatchInternal; };
+export type NexxusModelUpdatedPayload = { event: 'model_updated'; data: Array<NexxusJsonPatchInternal>; };
 
 export type NexxusModelDeletedData = Pick<NexxusAppModelType, 'id' | 'type' | 'appId' | 'userId'>;
 export type NexxusModelDeletedPayload = { event: 'model_deleted'; data: NexxusModelDeletedData; };

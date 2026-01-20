@@ -338,18 +338,20 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = []; } ctx._source.${path}.add(params.value${idx})`;
             } else if (patchData.metadata.pathFieldTypes[idx] === 'string') {
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ''; } ctx._source.${path} += params.value${idx}`;
+            } else {
+              NexxusElasticsearchDb.logger.warn(`Append operation not supported for field type: ${patchData.metadata.pathFieldTypes[idx]}`, NexxusDatabaseAdapter.loggerLabel);
             }
 
-            NexxusElasticsearchDb.logger.warn(`Append operation not supported for field type: ${patchData.metadata.pathFieldTypes[idx]}`, NexxusDatabaseAdapter.loggerLabel);
             break;
           case 'prepend':
             if (patchData.metadata.pathFieldTypes[idx] === 'array') {
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = []; } ctx._source.${path}.add(0, params.value${idx})`;
             } else if (patchData.metadata.pathFieldTypes[idx] === 'string') {
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ''; } ctx._source.${path} = params.value${idx} + ctx._source.${path}`;
+            } else {
+              NexxusElasticsearchDb.logger.warn(`Prepend operation not supported for field type: ${patchData.metadata.pathFieldTypes[idx]}`, NexxusDatabaseAdapter.loggerLabel);
             }
 
-            NexxusElasticsearchDb.logger.warn(`Prepend operation not supported for field type: ${patchData.metadata.pathFieldTypes[idx]}`, NexxusDatabaseAdapter.loggerLabel);
             break;
           default:
             NexxusElasticsearchDb.logger.warn(`Unsupported JSON Patch operation: ${patchData.op}`, NexxusDatabaseAdapter.loggerLabel);
@@ -361,11 +363,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
           return null;
         }
 
-        if (patchData.metadata.pathFieldTypes[idx] === 'date') {
-          scriptParams[`value${idx}`] = Math.floor((new Date(patchData.value[idx])).getTime()/1000);
-        } else {
-          scriptParams[`value${idx}`] = patchData.value[idx];
-        }
+        scriptParams[`value${idx}`] = patchData.value[idx];
 
         return scriptLine;
       });
