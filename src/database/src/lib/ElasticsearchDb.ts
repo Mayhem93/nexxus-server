@@ -306,13 +306,14 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     }
   }
 
-  async updateItems(collection: Array<NexxusJsonPatch>): Promise<void> {
+  async updateItems(collection: Array<NexxusJsonPatch>): Promise<Array<Partial<AnyNexxusModelType>>> {
     const bulkBody: Array<BulkOperationContainer | BulkUpdateAction> = [];
+    const collectedModelFields = new Set<string>();
 
     for (const patch of collection) {
       const patchData = patch.get();
       const scriptParams : Record<string, any> = {};
-      let index = `${NEXXUS_PREFIX_LC}-`
+      let index = `${NEXXUS_PREFIX_LC}-`;
 
       if (patchData.metadata.type === 'application') {
         index += `${patchData.metadata.type}`;
@@ -364,6 +365,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
         }
 
         scriptParams[`value${idx}`] = patchData.value[idx];
+        collectedModelFields.add(path);
 
         return scriptLine;
       });
@@ -390,11 +392,27 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
 
     if (bulkBody.length === 0) {
       NexxusElasticsearchDb.logger.warn('No items to update in Elasticsearch database', NexxusDatabaseAdapter.loggerLabel);
-    } else {
-      const result = await this.client.bulk({ operations: bulkBody, _source: true } );
 
-      NexxusElasticsearchDb.logger.debug(`Bulk update result: ${JSON.stringify(result)}`, NexxusDatabaseAdapter.loggerLabel);
+      return [];
     }
+
+    const result = await this.client.bulk({ operations: bulkBody, _source: Array.from(collectedModelFields) });
+    const collectedPartialModels: Array<Partial<AnyNexxusModelType>> = [];
+
+    NexxusElasticsearchDb.logger.debug(`Bulk update result: ${JSON.stringify(result)}`, NexxusDatabaseAdapter.loggerLabel);
+
+    result.items.forEach(item => {
+      if (item.update && item.update.status >= 200 && item.update.status < 300) {
+        collectedPartialModels.push({
+          id: item.update._id,
+          ...(item.update.get!._source)
+        } as Partial<AnyNexxusModelType>);
+      } else {
+        NexxusElasticsearchDb.logger.warn(`Failed to update item ID ${item.update?._id} in Elasticsearch: ${JSON.stringify(item.update?.error)}`, NexxusDatabaseAdapter.loggerLabel);
+      }
+    });
+
+    return collectedPartialModels;
   }
 
   async deleteItems(collection: Array<NexxusBaseModel>): Promise<void> {

@@ -7,7 +7,8 @@ import {
   NexxusAppModel,
   NexxusJsonPatch,
   NexxusBaseQueuePayload,
-  NexxusJsonPatchInternal
+  NexxusTransportManagetJsonPatch,
+  AnyNexxusModelType
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import {
@@ -64,7 +65,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
       }
 
       case 'model_updated': {
-        const validatedPatches: Array<NexxusJsonPatchInternal> = [];
+        const validatedPatches: Array<NexxusTransportManagetJsonPatch> = [];
 
         for (const patchData of payload.data) {
           const appSchema = NexxusWriterWorker.loadedApps.get(patchData.metadata.appId)!.getSchema();
@@ -81,7 +82,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
           updateUpdatedAtPatch.validate({ appSchema });
 
-          await NexxusWriterWorker.database.updateItems([jsonPatch, updateUpdatedAtPatch]);
+          const result = await NexxusWriterWorker.database.updateItems([jsonPatch, updateUpdatedAtPatch]) as Array<Partial<AnyNexxusModelType>>;
 
           const transformedPatchData = jsonPatch.get();
           const transformedUpdatedAtPatchData = updateUpdatedAtPatch.get();
@@ -89,7 +90,19 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
           delete transformedPatchData.metadata.pathFieldTypes; // Remove pathFieldTypes before sending to Transport Manager
           delete transformedUpdatedAtPatchData.metadata.pathFieldTypes;
 
-          validatedPatches.push(transformedPatchData, transformedUpdatedAtPatchData);
+          validatedPatches.push({
+            ...transformedPatchData,
+            metadata: {
+              ...transformedPatchData.metadata,
+              partialModel: result[0]
+            }
+          },
+          { ...transformedUpdatedAtPatchData,
+            metadata: {
+              ...transformedUpdatedAtPatchData.metadata,
+              partialModel: result[0]
+            }
+          });
         }
 
         this.publish('transport-manager', {

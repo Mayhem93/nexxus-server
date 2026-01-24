@@ -1,5 +1,6 @@
 import { NexxusAppModelType } from '../models/AppModel';
-import { NexxusJsonPatchInternal } from '../common/JsonPatch';
+import { NexxusJsonPatchInternal, NexxusJsonPatchMetadata } from '../common/JsonPatch';
+import { AnyNexxusModelType } from '../models/BaseModel';
 
 export interface NexxusBaseQueuePayload {
   event: string;
@@ -15,9 +16,19 @@ export type NexxusModelDeletedPayload = { event: 'model_deleted'; data: NexxusMo
 // Built-in worker payloads
 export type NexxusWriterPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload | NexxusModelDeletedPayload;
 
-export type NexxusTransportManagerPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload | NexxusModelDeletedPayload;
+export type NexxusTransportManagetJsonPatch = Omit<NexxusJsonPatchInternal, 'metadata'> & {
+  metadata: NexxusJsonPatchMetadata & { partialModel: Partial<AnyNexxusModelType> };
+};
+
+export type NexxusTransportManagerModelUpdatedPayload = {
+  event: 'model_updated';
+  data: Array<NexxusTransportManagetJsonPatch>;
+}
+
+export type NexxusTransportManagerPayload = NexxusModelCreatedPayload | NexxusTransportManagerModelUpdatedPayload | NexxusModelDeletedPayload;
 
 export interface NexxusWebSocketJsonPatchMetadata {
+  id: string;
   channels: Array<string>; // Channel key from NexxusRedisSubscription.getKey()
 }
 

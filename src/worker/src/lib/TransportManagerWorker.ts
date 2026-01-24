@@ -5,12 +5,12 @@ import {
   NexxusQueueName,
   NexxusTransportManagerPayload,
   NexxusModelCreatedPayload,
-  NexxusModelUpdatedPayload,
+  NexxusTransportManagerModelUpdatedPayload,
+  NexxusTransportManagetJsonPatch,
   NexxusModelDeletedPayload,
   NexxusBaseQueuePayload,
   NexxusFilterQuery,
   NexxusAppModelType,
-  NexxusJsonPatch,
   NexxusWebSocketJsonPatch
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
@@ -117,8 +117,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     }
   }
 
-  private async handleModelUpdated(data: NexxusModelUpdatedPayload['data']): Promise<void> {
-    const patches = data.map(patchData => new NexxusJsonPatch(patchData));
+  private async handleModelUpdated(data: NexxusTransportManagerModelUpdatedPayload['data']): Promise<void> {
     const channel = {
       appId: data[0].metadata.appId,
       userId: data[0].metadata.userId,
@@ -127,7 +126,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     };
 
     // Get map of devices -> matching channel keys
-    const deviceToChannelsMap = await this.getDevicesFromGeneratedChannels(channel, patches);
+    const deviceToChannelsMap = await this.getDevicesFromGeneratedChannels(channel, data);
 
     // Group by transport
     const transportToDeviceChannelsMap: Map<NexxusQueueName, Map<string, string[]>> = new Map();
@@ -150,6 +149,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
           path: patch.path,
           value: patch.value,
           metadata: {
+            id: patch.metadata.id,
             channels: channelKeys // Device-specific matching channels
           }
         }));
@@ -249,26 +249,23 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
       );
 
       // If no changes (e.g., model deleted), skip filtered subscriptions
-      if (changes.length > 0) {
-        // Step 2: Get all filters for this channel
+      if (changes) {
         const filters = await NexxusRedisSubscription.getAllFilters(channelPattern);
 
         // Step 3: For each filter, test if ANY change matches
         for (const [filterId, filterQuery] of Object.entries(filters)) {
           const filter = new NexxusFilterQuery(filterQuery, { appModelDef: appSchema[channelPattern.model] });
+          let matchesFilter = false;
 
-          // Test if ANY change matches the filter
-          const matchesFilter = changes.some(singleChange => {
-            let objectChange: Partial<NexxusAppModelType>;
+          if (Array.isArray(changes)) {
+            matchesFilter = (changes as Array<NexxusTransportManagetJsonPatch>).some(singleChange => {
+              return filter.test(singleChange.metadata.partialModel);
+            });
+          } else {
+            matchesFilter = filter.test(changes as Partial<NexxusAppModelType>);
+          }
 
-            if (singleChange instanceof NexxusJsonPatch) {
-              objectChange = singleChange.getPartialModel();
-            } else {
-              objectChange = singleChange as Partial<NexxusAppModelType>;
-            }
-
-            return filter.test(objectChange);
-          });
+          // Test if ANY change matches
 
           if (matchesFilter) {
             const filteredSub = new NexxusRedisSubscription(channelPattern, filterId);
