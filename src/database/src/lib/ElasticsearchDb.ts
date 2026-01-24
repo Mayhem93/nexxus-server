@@ -334,22 +334,22 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
 
             break;
           case 'append':
-            if (patchData.metadata.pathFieldTypes[idx] === 'array') {
+            if (patchData.metadata.pathFieldTypes![idx] === 'array') {
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = []; } ctx._source.${path}.add(params.value${idx})`;
-            } else if (patchData.metadata.pathFieldTypes[idx] === 'string') {
+            } else if (patchData.metadata.pathFieldTypes![idx] === 'string') {
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ''; } ctx._source.${path} += params.value${idx}`;
             } else {
-              NexxusElasticsearchDb.logger.warn(`Append operation not supported for field type: ${patchData.metadata.pathFieldTypes[idx]}`, NexxusDatabaseAdapter.loggerLabel);
+              NexxusElasticsearchDb.logger.warn(`Append operation not supported for field type: ${patchData.metadata.pathFieldTypes![idx]}`, NexxusDatabaseAdapter.loggerLabel);
             }
 
             break;
           case 'prepend':
-            if (patchData.metadata.pathFieldTypes[idx] === 'array') {
+            if (patchData.metadata.pathFieldTypes![idx] === 'array') {
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = []; } ctx._source.${path}.add(0, params.value${idx})`;
-            } else if (patchData.metadata.pathFieldTypes[idx] === 'string') {
+            } else if (patchData.metadata.pathFieldTypes![idx] === 'string') {
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ''; } ctx._source.${path} = params.value${idx} + ctx._source.${path}`;
             } else {
-              NexxusElasticsearchDb.logger.warn(`Prepend operation not supported for field type: ${patchData.metadata.pathFieldTypes[idx]}`, NexxusDatabaseAdapter.loggerLabel);
+              NexxusElasticsearchDb.logger.warn(`Prepend operation not supported for field type: ${patchData.metadata.pathFieldTypes![idx]}`, NexxusDatabaseAdapter.loggerLabel);
             }
 
             break;
@@ -391,7 +391,9 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     if (bulkBody.length === 0) {
       NexxusElasticsearchDb.logger.warn('No items to update in Elasticsearch database', NexxusDatabaseAdapter.loggerLabel);
     } else {
-      await this.client.bulk({ operations: bulkBody });
+      const result = await this.client.bulk({ operations: bulkBody, _source: true } );
+
+      NexxusElasticsearchDb.logger.debug(`Bulk update result: ${JSON.stringify(result)}`, NexxusDatabaseAdapter.loggerLabel);
     }
   }
 

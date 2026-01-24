@@ -62,6 +62,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
         break;
       }
+
       case 'model_updated': {
         const validatedPatches: Array<NexxusJsonPatchInternal> = [];
 
@@ -83,10 +84,12 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
           await NexxusWriterWorker.database.updateItems([jsonPatch, updateUpdatedAtPatch]);
 
           const transformedPatchData = jsonPatch.get();
+          const transformedUpdatedAtPatchData = updateUpdatedAtPatch.get();
 
           delete transformedPatchData.metadata.pathFieldTypes; // Remove pathFieldTypes before sending to Transport Manager
+          delete transformedUpdatedAtPatchData.metadata.pathFieldTypes;
 
-          validatedPatches.push(transformedPatchData);
+          validatedPatches.push(transformedPatchData, transformedUpdatedAtPatchData);
         }
 
         this.publish('transport-manager', {
@@ -96,6 +99,7 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
         break;
       }
+
       case 'model_deleted': {
         const appModel = new NexxusAppModel(payload.data);
 

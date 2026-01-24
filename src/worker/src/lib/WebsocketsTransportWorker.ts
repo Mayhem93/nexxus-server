@@ -1,15 +1,4 @@
 import {
-  ConfigCliArgs,
-  ConfigEnvVars,
-  NexxusBaseQueuePayload,
-  NexxusConfig,
-  NexxusQueueName,
-  NexxusWebsocketPayload
-} from '@nexxus/core';
-import { NexxusQueueMessage } from '@nexxus/message_queue';
-import { NexxusDevice, RedisDeviceInvalidParamsException } from '@nexxus/redis';
-
-import {
   NexxusBaseWorker,
   NexxusBaseWorkerEvents,
   NexxusWorkerServices
@@ -20,8 +9,20 @@ import {
   NexxusWsInvalidParametersException
 } from './ws/Exceptions';
 
+import {
+  ConfigCliArgs,
+  ConfigEnvVars,
+  NexxusBaseQueuePayload,
+  NexxusConfig,
+  NexxusQueueName,
+  NexxusWebsocketPayload
+} from '@nexxus/core';
+import { NexxusQueueMessage } from '@nexxus/message_queue';
+import { NexxusDevice, RedisDeviceInvalidParamsException } from '@nexxus/redis';
+
 import * as path from "node:path";
-import { WebSocketServer, WebSocket } from "ws";
+
+import { WebSocketServer, type WebSocket } from "ws";
 
 type NexxusWebsocketsTransportWorkerConfig = NexxusConfig & {
   name: string;

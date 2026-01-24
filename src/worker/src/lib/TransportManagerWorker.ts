@@ -10,7 +10,8 @@ import {
   NexxusBaseQueuePayload,
   NexxusFilterQuery,
   NexxusAppModelType,
-  NexxusJsonPatch
+  NexxusJsonPatch,
+  NexxusWebSocketJsonPatch
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import {
@@ -81,29 +82,28 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
   }
 
   private async handleModelCreated(data: NexxusModelCreatedPayload['data']): Promise<void> {
-    const devices = await this.getDevicesFromGeneratedChannels({
+    const deviceToChannelsMap = await this.getDevicesFromGeneratedChannels({
       appId: data.appId,
       userId: data.userId,
       model: data.type,
       modelId: data.id
     }, data);
-    const transportToDeviceMap: Map<NexxusQueueName, Set<string>> = new Map();
+    const transportToDeviceChannelsMap: Map<NexxusQueueName, Map<string, string[]>> = new Map();
 
-    for (const device of devices) {
-      const [id, transport] = device.split('|');
+    for (const [deviceTransport, channelKeys] of deviceToChannelsMap.entries()) {
+      const [deviceId, transport] = deviceTransport.split('|');
 
-      if (!transportToDeviceMap.has(transport as NexxusQueueName)) {
-        transportToDeviceMap.set(transport as NexxusQueueName, new Set());
+      if (!transportToDeviceChannelsMap.has(transport as NexxusQueueName)) {
+        transportToDeviceChannelsMap.set(transport as NexxusQueueName, new Map());
       }
 
-      transportToDeviceMap.get(transport as NexxusQueueName)!.add(id);
+      transportToDeviceChannelsMap.get(transport as NexxusQueueName)!.set(deviceId, Array.from(channelKeys));
     }
 
-    for (const [transport, deviceSet] of transportToDeviceMap.entries()) {
-
+    for (const [transport, deviceChannelsMap] of transportToDeviceChannelsMap.entries()) {
       this.publish(transport as NexxusQueueName, {
         event: 'device_message',
-        deviceIds: Array.from(deviceSet.values()),
+        deviceIds: Array.from(deviceChannelsMap.keys()),
         data: {
           event: 'model_created',
           data
@@ -111,72 +111,89 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
       });
 
       NexxusTransportManagerWorker.logger.debug(
-        `Notifying ${deviceSet.size} devices about create model ID: "${data.id}" via transport: "${transport}"`,
+        `Notifying ${deviceChannelsMap.size} devices about new model with ID: "${data.id}" via transport: "${transport}"`,
         NexxusTransportManagerWorker.loggerLabel
       );
     }
   }
 
   private async handleModelUpdated(data: NexxusModelUpdatedPayload['data']): Promise<void> {
-    const patchInstances = data.map(patchData => new NexxusJsonPatch(patchData));
-    const devices = await this.getDevicesFromGeneratedChannels({
+    const patches = data.map(patchData => new NexxusJsonPatch(patchData));
+    const channel = {
       appId: data[0].metadata.appId,
       userId: data[0].metadata.userId,
       model: data[0].metadata.type,
       modelId: data[0].metadata.id
-    }, patchInstances);
-    const transportToDeviceMap: Map<NexxusQueueName, Set<string>> = new Map();
+    };
 
-    for (const device of devices) {
-      const [id, transport] = device.split('|');
+    // Get map of devices -> matching channel keys
+    const deviceToChannelsMap = await this.getDevicesFromGeneratedChannels(channel, patches);
 
-      if (!transportToDeviceMap.has(transport as NexxusQueueName)) {
-        transportToDeviceMap.set(transport as NexxusQueueName, new Set());
+    // Group by transport
+    const transportToDeviceChannelsMap: Map<NexxusQueueName, Map<string, string[]>> = new Map();
+
+    for (const [deviceTransport, channelKeys] of deviceToChannelsMap.entries()) {
+      const [deviceId, transport] = deviceTransport.split('|');
+
+      if (!transportToDeviceChannelsMap.has(transport as NexxusQueueName)) {
+        transportToDeviceChannelsMap.set(transport as NexxusQueueName, new Map());
       }
 
-      transportToDeviceMap.get(transport as NexxusQueueName)!.add(id);
+      transportToDeviceChannelsMap.get(transport as NexxusQueueName)!.set(deviceId, Array.from(channelKeys));
     }
 
-    for (const [transport, deviceSet] of transportToDeviceMap.entries()) {
-      this.publish(transport as NexxusQueueName, {
-        event: 'device_message',
-        deviceIds: Array.from(deviceSet.values()),
-        data: {
-          event: 'model_updated',
-          data
-        }
-      });
+    for (const [transport, deviceChannelsMap] of transportToDeviceChannelsMap.entries()) {
+      // For each device, create patches with their specific matching channels
+      for (const [deviceId, channelKeys] of deviceChannelsMap.entries()) {
+        const websocketPatches: Array<NexxusWebSocketJsonPatch> = data.map(patch => ({
+          op: patch.op,
+          path: patch.path,
+          value: patch.value,
+          metadata: {
+            channels: channelKeys // Device-specific matching channels
+          }
+        }));
+
+        this.publish(transport as NexxusQueueName, {
+          event: 'device_message',
+          deviceIds: [ deviceId ],
+          data: {
+            event: 'model_updated',
+            data: websocketPatches
+          }
+        });
+      }
 
       NexxusTransportManagerWorker.logger.debug(
-        `Notifying ${deviceSet.size} devices about update to model ID: "${data[0].metadata.id}" via transport: "${transport}"`,
+        `Notified ${deviceChannelsMap.size} devices about update to model ID: "${data[0].metadata.id}" via transport: "${transport}"`,
         NexxusTransportManagerWorker.loggerLabel
       );
     }
   }
 
   private async handleModelDeleted(data: NexxusModelDeletedPayload['data']): Promise<void> {
-    const devices = await this.getDevicesFromGeneratedChannels({
+    const deviceToChannelsMap = await this.getDevicesFromGeneratedChannels({
       appId: data.appId,
       userId: data.userId,
       model: data.type,
       modelId: data.id
     });
-    const transportToDeviceMap: Map<NexxusQueueName, Set<string>> = new Map();
+    const transportToDeviceChannelsMap: Map<NexxusQueueName, Map<string, string[]>> = new Map();
 
-    for (const device of devices) {
-      const [id, transport] = device.split('|');
+    for (const [deviceTransport, channelKeys] of deviceToChannelsMap.entries()) {
+      const [deviceId, transport] = deviceTransport.split('|');
 
-      if (!transportToDeviceMap.has(transport as NexxusQueueName)) {
-        transportToDeviceMap.set(transport as NexxusQueueName, new Set());
+      if (!transportToDeviceChannelsMap.has(transport as NexxusQueueName)) {
+        transportToDeviceChannelsMap.set(transport as NexxusQueueName, new Map());
       }
 
-      transportToDeviceMap.get(transport as NexxusQueueName)!.add(id);
+      transportToDeviceChannelsMap.get(transport as NexxusQueueName)!.set(deviceId, Array.from(channelKeys));
     }
 
-    for (const [transport, deviceSet] of transportToDeviceMap.entries()) {
+    for (const [transport, deviceChannelsMap] of transportToDeviceChannelsMap.entries()) {
       this.publish(transport as NexxusQueueName, {
         event: 'device_message',
-        deviceIds: Array.from(deviceSet.values()),
+        deviceIds: Array.from(deviceChannelsMap.keys()),
         data: {
           event: 'model_deleted',
           data
@@ -184,14 +201,15 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
       });
 
       NexxusTransportManagerWorker.logger.debug(
-        `Notifying ${deviceSet.size} devices about delete of model ID: "${data.id}" via transport: "${transport}"`,
+        `Notifying ${deviceChannelsMap.size} devices about deleted model with ID: "${data.id}" via transport: "${transport}"`,
         NexxusTransportManagerWorker.loggerLabel
       );
     }
   }
 
-  private async getDevicesFromGeneratedChannels<T>(channel: NexxusBaseSubscriptionChannel, change?: T | T[]): Promise<Set<NexxusDeviceTransportString>> {
-    const allDevices = new Set<NexxusDeviceTransportString>();
+  private async getDevicesFromGeneratedChannels<T>(channel: NexxusBaseSubscriptionChannel, change?: T | T[]): Promise<Map<NexxusDeviceTransportString, Set<string>>> {
+    const deviceToChannelsMap = new Map<NexxusDeviceTransportString, Set<string>>();
+
     const appSchema = NexxusTransportManagerWorker.loadedApps.get(channel.appId)?.getData().schema;
 
     if (!appSchema) {
@@ -200,7 +218,7 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
         NexxusTransportManagerWorker.loggerLabel
       );
 
-      return allDevices;
+      return deviceToChannelsMap;
     }
 
     // Normalize change to array for consistent processing
@@ -211,26 +229,33 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     // Step 1: Generate all base channels (without filters)
     const baseChannels = NexxusRedisSubscription.generateSubscriptionPatterns(channel);
 
-    for (const channel of baseChannels) {
+    for (const channelPattern of baseChannels) {
       // Get devices from unfiltered subscription
-      const unfilteredSub = new NexxusRedisSubscription(channel);
+      const unfilteredSub = new NexxusRedisSubscription(channelPattern);
+      const unfilteredChannelKey = unfilteredSub.getKey();
       const unfilteredDevices = await unfilteredSub.getAllDevices();
 
-      unfilteredDevices.forEach(deviceId => allDevices.add(deviceId));
+      // Add unfiltered channel to each device
+      for (const deviceId of unfilteredDevices) {
+        if (!deviceToChannelsMap.has(deviceId)) {
+          deviceToChannelsMap.set(deviceId, new Set());
+        }
+        deviceToChannelsMap.get(deviceId)!.add(unfilteredChannelKey);
+      }
 
       NexxusTransportManagerWorker.logger.debug(
-        `Found ${unfilteredDevices.size} devices for unfiltered channel: ${JSON.stringify(channel)}`,
+        `Found ${unfilteredDevices.size} devices for unfiltered channel: ${unfilteredChannelKey}`,
         NexxusTransportManagerWorker.loggerLabel
       );
 
       // If no changes (e.g., model deleted), skip filtered subscriptions
       if (changes.length > 0) {
         // Step 2: Get all filters for this channel
-        const filters = await NexxusRedisSubscription.getAllFilters(channel);
+        const filters = await NexxusRedisSubscription.getAllFilters(channelPattern);
 
         // Step 3: For each filter, test if ANY change matches
         for (const [filterId, filterQuery] of Object.entries(filters)) {
-          const filter = new NexxusFilterQuery(filterQuery, { appModelDef: appSchema[channel.model] });
+          const filter = new NexxusFilterQuery(filterQuery, { appModelDef: appSchema[channelPattern.model] });
 
           // Test if ANY change matches the filter
           const matchesFilter = changes.some(singleChange => {
@@ -246,13 +271,20 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
           });
 
           if (matchesFilter) {
-            const filteredSub = new NexxusRedisSubscription(channel, filterId);
+            const filteredSub = new NexxusRedisSubscription(channelPattern, filterId);
+            const filteredChannelKey = filteredSub.getKey();
             const filteredDevices = await filteredSub.getAllDevices();
 
-            filteredDevices.forEach(deviceId => allDevices.add(deviceId));
+            // Add filtered channel to each device
+            for (const deviceId of filteredDevices) {
+              if (!deviceToChannelsMap.has(deviceId)) {
+                deviceToChannelsMap.set(deviceId, new Set());
+              }
+              deviceToChannelsMap.get(deviceId)!.add(filteredChannelKey);
+            }
 
             NexxusTransportManagerWorker.logger.debug(
-              `Found ${filteredDevices.size} devices for filtered channel: ${JSON.stringify(channel)} with filter: ${filterId}`,
+              `Found ${filteredDevices.size} devices for filtered channel: ${filteredChannelKey}`,
               NexxusTransportManagerWorker.loggerLabel
             );
           }
@@ -261,10 +293,10 @@ export class NexxusTransportManagerWorker extends NexxusBaseWorker<NexxusTranspo
     }
 
     NexxusTransportManagerWorker.logger.debug(
-      `Total ${allDevices.size} unique devices to notify for update`,
+      `Total ${deviceToChannelsMap.size} unique devices to notify for update`,
       NexxusTransportManagerWorker.loggerLabel
     );
 
-    return allDevices;
+    return deviceToChannelsMap;
   }
 }

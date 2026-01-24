@@ -17,11 +17,30 @@ export type NexxusWriterPayload = NexxusModelCreatedPayload | NexxusModelUpdated
 
 export type NexxusTransportManagerPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload | NexxusModelDeletedPayload;
 
+export interface NexxusWebSocketJsonPatchMetadata {
+  channels: Array<string>; // Channel key from NexxusRedisSubscription.getKey()
+}
+
+/**
+ * JsonPatch type for WebSocket transport workers
+ */
+export type NexxusWebSocketJsonPatch = Omit<NexxusJsonPatchInternal, 'metadata'> & {
+  metadata: NexxusWebSocketJsonPatchMetadata;
+};
+
+/**
+ * Payload for WebSocket Transport - slim metadata with just channel
+ */
+export type NexxusWebSocketModelUpdatedPayload = {
+  event: 'model_updated';
+  data: Array<NexxusWebSocketJsonPatch>;
+};
+
 // Payload for websocket workers (dynamic instances)
 export type NexxusWebsocketPayload = {
   event: 'device_message';
   deviceIds: Array<string>;
-  data: NexxusModelCreatedPayload | NexxusModelUpdatedPayload | NexxusModelDeletedPayload;
+  data: NexxusModelCreatedPayload | NexxusWebSocketModelUpdatedPayload | NexxusModelDeletedPayload;
 };
 
 export type NexxusMqttPayload =
