@@ -354,6 +354,24 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
             }
 
             break;
+
+          case 'incr':
+            if (patchData.metadata.pathFieldTypes![idx] === 'number' || patchData.metadata.pathFieldTypes![idx] === 'date') {
+              scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ${patchData.value[idx]}; } ctx._source.${path} += params.value${idx}`;
+            } else {
+              NexxusElasticsearchDb.logger.warn(`Incr operation not supported for field type: ${patchData.metadata.pathFieldTypes![idx]}`, NexxusDatabaseAdapter.loggerLabel);
+            }
+
+            break;
+
+          case 'decr':
+            if (patchData.metadata.pathFieldTypes![idx] === 'number' || patchData.metadata.pathFieldTypes![idx] === 'date') {
+              scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ${patchData.value[idx]}; } ctx._source.${path} -= params.value${idx}`;
+            } else {
+              NexxusElasticsearchDb.logger.warn(`Incr operation not supported for field type: ${patchData.metadata.pathFieldTypes![idx]}`, NexxusDatabaseAdapter.loggerLabel);
+            }
+
+            break;
           default:
             NexxusElasticsearchDb.logger.warn(`Unsupported JSON Patch operation: ${patchData.op}`, NexxusDatabaseAdapter.loggerLabel);
 

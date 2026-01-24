@@ -24,7 +24,9 @@ import * as dot from 'dot-prop';
 const JSON_OPS = [
   'replace',
   'append',
-  'prepend'
+  'prepend',
+  'incr',
+  'decr'
 ] as const;
 
 export type NexxusJsonPatchConstructor = {
@@ -139,6 +141,18 @@ export class NexxusJsonPatch {
             throw new InvalidJsonPatchException(`Value for prepend at path "${path}" must be a string`);
           }
         }
+      }
+    },
+    incr: {
+      allowedTypes: ['number', 'date'],
+      validateValue: (value: any, fieldDef: NexxusFieldDef, path: string) => {
+        NexxusJsonPatch.validateAgainstType(value, fieldDef, path);
+      }
+    },
+    decr: {
+      allowedTypes: ['number', 'date'],
+      validateValue: (value: any, fieldDef: NexxusFieldDef, path: string) => {
+        NexxusJsonPatch.validateAgainstType(value, fieldDef, path);
       }
     }
   };
