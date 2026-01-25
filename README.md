@@ -10,15 +10,15 @@
 
 ## 📋 Table of Contents
 
-- [What is Nexxus?](#what-is-nexxus)
-- [Why Nexxus?](#why-nexxus)
-- [Architecture Overview](#architecture-overview)
-- [Package Structure](#package-structure)
-- [Key Concepts](#key-concepts)
-- [Use Cases](#use-cases)
-- [Extensibility](#extensibility)
-- [Project Status](#project-status)
-- [Getting Started](#getting-started)
+- [What is Nexxus?](#-what-is-nexxus)
+- [Why Nexxus?](#-why-nexxus)
+- [Architecture Overview](#-architecture-overview)
+- [Package Structure](#-package-structure)
+- [Key Concepts](#-key-concepts)
+- [Use Cases](#-use-cases)
+- [Extensibility](#-extensibility)
+- [Project Status](#-project-status)
+- [Getting Started](#-getting-started)
 
 ---
 
