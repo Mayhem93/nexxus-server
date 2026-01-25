@@ -17,8 +17,8 @@
     "dist-*/**"
   ],
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Răzvan Botea <contact@razvanbotea.me>",
+  "license": "MPL-2.0",
   "devDependencies": {
     "@tsconfig/node24": "^24.0.1",
     "@types/node": "^24.9.1",

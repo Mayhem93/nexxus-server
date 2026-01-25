@@ -17,8 +17,8 @@
     "dist-*/**"
   ],
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Răzvan Botea <contact@razvanbotea.me>",
+  "license": "MPL-2.0",
   "dependencies": {
     "@nexxus/core": "file:../core",
     "@nexxus/database": "file:../database",
