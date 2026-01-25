@@ -12,7 +12,7 @@
 
 - [What is Nexxus?](#-what-is-nexxus)
 - [Why Nexxus?](#-why-nexxus)
-- [Architecture Overview](#-architecture-overview)
+- [Architecture Overview](#%EF%B8%8F-architecture-overview)
 - [Package Structure](#-package-structure)
 - [Key Concepts](#-key-concepts)
 - [Use Cases](#-use-cases)
