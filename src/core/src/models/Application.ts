@@ -3,7 +3,7 @@ import {
   INexxusBaseModel,
   MODEL_REGISTRY
 } from "./BaseModel";
-import { NexxusModelDef } from "../common/ModelTypes";
+import { NexxusFieldDef, NexxusModelDef } from "../common/ModelTypes";
 import { NexxusUserDetailSchema } from "./User";
 
 import * as Dot from 'dot-prop';
@@ -58,12 +58,40 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
     return appModelFieldType as string | undefined;
   }
 
-  async save(): Promise<void> {
-    // Implementation for saving the application model to the database
-  }
+  public getModelFilterableFields(modelType: string): Set<string> {
+    const modelDef = this.getSchema()[modelType];
+    const filterableFields: Set<string> = new Set();
 
-  async delete(): Promise<void> {
-    // Implementation for deleting the application model from the database
+    if (!modelDef) {
+      return filterableFields;
+    }
+
+    // Recursive helper to traverse nested fields
+    const collectFilterableFields = (
+      fields: Record<string, NexxusFieldDef>,
+      prefix: string = ''
+    ): void => {
+      for (const [fieldName, fieldDef] of Object.entries(fields)) {
+        const fieldPath = prefix ? `${prefix}.${fieldName}` : fieldName;
+
+        if (fieldDef.type === 'object') {
+          // Recurse into nested object
+          collectFilterableFields(fieldDef.properties, fieldPath);
+        } else if (fieldDef.type === 'array') {
+          // Skip arrays entirely (not filterable)
+          continue;
+        } else {
+          // Primitive field - check filterable flag
+          if (fieldDef.filterable) {
+            filterableFields.add(fieldPath);
+          }
+        }
+      }
+    };
+
+    collectFilterableFields(modelDef);
+
+    return filterableFields;
   }
 }
 

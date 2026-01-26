@@ -52,7 +52,4 @@ export abstract class NexxusBaseModel<T extends INexxusBaseModel = INexxusBaseMo
   getData(): T {
     return this.data;
   }
-
-  abstract save(): Promise<void>;
-  abstract delete(): Promise<void>;
 }

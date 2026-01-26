@@ -35,6 +35,10 @@ export interface NexxusDbGetOptions<T extends NexxusModelTypeName = string> {
   appId?: string;
 }
 
+export interface NexxusDbUpdateOptions {
+  returnFields?: Set<string>;
+}
+
 export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends NexxusDatabaseAdapterEvents>
   extends NexxusBaseService<T, Ev extends NexxusDatabaseAdapterEvents ? Ev : NexxusDatabaseAdapterEvents> {
 
@@ -64,7 +68,7 @@ export abstract class NexxusDatabaseAdapter<T extends NexxusConfig, Ev extends N
   abstract searchItems(options: NexxusDbSearchOptions<'application'>): Promise<NexxusApplication[]>;
   abstract searchItems(options: NexxusDbSearchOptions<'user'>): Promise<NexxusApplicationUser[]>;
   abstract searchItems(options: NexxusDbSearchOptions<string>): Promise<NexxusAppModel[]>;
-  abstract updateItems(collection: Array<NexxusJsonPatch>): Promise<Array<Partial<AnyNexxusModelType>> | void>;
+  abstract updateItems(collection: Array<NexxusJsonPatch>, options?: NexxusDbUpdateOptions): Promise<Array<Partial<AnyNexxusModelType>> | void>;
   abstract deleteItems(collection: Array<NexxusBaseModel>): Promise<void>;
 
   protected abstract buildQuery(filter: NexxusFilterQuery): string | object;

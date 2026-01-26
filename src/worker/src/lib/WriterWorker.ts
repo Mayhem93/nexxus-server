@@ -8,7 +8,7 @@ import {
   NexxusJsonPatch,
   NexxusBaseQueuePayload,
   NexxusTransportManagetJsonPatch,
-  AnyNexxusModelType
+  NexxusAppModelType
 } from '@nexxus/core';
 import { NexxusQueueMessage } from '@nexxus/message_queue';
 import {
@@ -68,7 +68,8 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
         const validatedPatches: Array<NexxusTransportManagetJsonPatch> = [];
 
         for (const patchData of payload.data) {
-          const appSchema = NexxusWriterWorker.loadedApps.get(patchData.metadata.appId)!.getSchema();
+          const app = NexxusWriterWorker.loadedApps.get(patchData.metadata.appId);
+          const appSchema = app!.getSchema();
           const jsonPatch = new NexxusJsonPatch(patchData);
 
           jsonPatch.validate({ appSchema });
@@ -82,13 +83,19 @@ export class NexxusWriterWorker extends NexxusBaseWorker<NexxusWriterWorkerConfi
 
           updateUpdatedAtPatch.validate({ appSchema });
 
-          const result = await NexxusWriterWorker.database.updateItems([jsonPatch, updateUpdatedAtPatch]) as Array<Partial<AnyNexxusModelType>>;
+          const result = await NexxusWriterWorker.database.updateItems(
+            [jsonPatch, updateUpdatedAtPatch],
+            {
+              returnFields: app?.getModelFilterableFields(patchData.metadata.type)
+            }
+          ) as Array<Partial<NexxusAppModelType>>;
 
           const transformedPatchData = jsonPatch.get();
           const transformedUpdatedAtPatchData = updateUpdatedAtPatch.get();
 
           delete transformedPatchData.metadata.pathFieldTypes; // Remove pathFieldTypes before sending to Transport Manager
           delete transformedUpdatedAtPatchData.metadata.pathFieldTypes;
+          delete result[0].id; // Remove id from partialModel before sending to Transport Manager
 
           validatedPatches.push({
             ...transformedPatchData,

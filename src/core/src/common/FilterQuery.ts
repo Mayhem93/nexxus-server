@@ -211,6 +211,14 @@ export class NexxusFilterQuery {
       throw new InvalidQueryFilterException(`Field "${path}" does not exist in model schema`);
     }
 
+    if (fieldDef.type === 'object' || fieldDef.type === 'array') {
+      throw new InvalidQueryFilterException(`Cannot filter on non-primitive field "${path}"`);
+    }
+
+    if (!fieldDef.filterable) {
+      throw new InvalidQueryFilterException(`Field "${path}" is not filterable`);
+    }
+
     // Simple equality check
     if (typeof condition !== 'object' || condition === null) {
       this.validateValueType(condition, fieldDef, path);

@@ -1,6 +1,5 @@
 import { NexxusAppModelType } from '../models/AppModel';
 import { NexxusJsonPatchInternal, NexxusJsonPatchMetadata } from '../common/JsonPatch';
-import { AnyNexxusModelType } from '../models/BaseModel';
 
 export interface NexxusBaseQueuePayload {
   event: string;
@@ -17,7 +16,7 @@ export type NexxusModelDeletedPayload = { event: 'model_deleted'; data: NexxusMo
 export type NexxusWriterPayload = NexxusModelCreatedPayload | NexxusModelUpdatedPayload | NexxusModelDeletedPayload;
 
 export type NexxusTransportManagetJsonPatch = Omit<NexxusJsonPatchInternal, 'metadata'> & {
-  metadata: NexxusJsonPatchMetadata & { partialModel: Partial<AnyNexxusModelType> };
+  metadata: NexxusJsonPatchMetadata & { partialModel: Partial<NexxusAppModelType> };
 };
 
 export type NexxusTransportManagerModelUpdatedPayload = {

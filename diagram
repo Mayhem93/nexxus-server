@@ -1,0 +1,40 @@
+---
+config:
+  theme: neo
+---
+graph TB
+    Client[Client Application]
+    API[API Server]
+    WriterQueue[Writer Queue]
+    Writer[Writer Worker]
+    TMQueue[Transport Manager Queue]
+    TM[Transport Manager Worker]
+    WSQueue[WebSocket Queue]
+    WS[WebSocket Worker]
+    DB[(Database<br/>Elasticsearch)]
+    Redis[(Redis<br/>Subscriptions & Devices)]
+
+    Client -->|REST API| API
+    Client <-.->|WebSocket Connection| WS
+
+    API -->|Create/Update/Delete| WriterQueue
+    WriterQueue --> Writer
+    Writer -->|Persist Data| DB
+    Writer -->|Notify Change| TMQueue
+
+    TMQueue --> TM
+    TM -->|Check Subscriptions| Redis
+    TM -->|Route Notification| WSQueue
+
+    WSQueue --> WS
+    WS -->|Push Update| Client
+
+    API <-->|Read/Write| DB
+    API <-->|Manage Subscriptions| Redis
+
+    style API fill:#e1f5ff
+    style Writer fill:#fff4e1
+    style TM fill:#ffe1f5
+    style WS fill:#e1ffe1
+    style DB fill:#f0f0f0
+    style Redis fill:#f0f0f0

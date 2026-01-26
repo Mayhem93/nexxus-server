@@ -3,11 +3,12 @@ export type NexxusModelFieldType = NexxusModelPrimitiveType | 'array' | 'object'
 
 interface BaseFieldDef {
   type: NexxusModelFieldType;
-  required: boolean;
+  required?: boolean;
 }
 
 export interface PrimitiveFieldDef extends BaseFieldDef {
   type: NexxusModelPrimitiveType;
+  filterable?: boolean; // Whether the field can be used in filter queries; default is undefined or false
 }
 
 export interface NexxusArrayFieldDef extends BaseFieldDef {

@@ -2,7 +2,8 @@ import {
   NexxusDatabaseAdapter,
   NexxusDatabaseAdapterEvents,
   NexxusDbGetOptions,
-  NexxusDbSearchOptions
+  NexxusDbSearchOptions,
+  NexxusDbUpdateOptions
 } from "./DatabaseAdapter";
 import {
   NexxusConfig,
@@ -306,7 +307,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     }
   }
 
-  async updateItems(collection: Array<NexxusJsonPatch>): Promise<Array<Partial<AnyNexxusModelType>>> {
+  async updateItems(collection: Array<NexxusJsonPatch>, options?: NexxusDbUpdateOptions): Promise<Array<Partial<AnyNexxusModelType>>> {
     const bulkBody: Array<BulkOperationContainer | BulkUpdateAction> = [];
     const collectedModelFields = new Set<string>();
 
@@ -368,7 +369,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
             if (patchData.metadata.pathFieldTypes![idx] === 'number' || patchData.metadata.pathFieldTypes![idx] === 'date') {
               scriptLine = `if (ctx._source.${path} == null) { ctx._source.${path} = ${patchData.value[idx]}; } ctx._source.${path} -= params.value${idx}`;
             } else {
-              NexxusElasticsearchDb.logger.warn(`Incr operation not supported for field type: ${patchData.metadata.pathFieldTypes![idx]}`, NexxusDatabaseAdapter.loggerLabel);
+              NexxusElasticsearchDb.logger.warn(`Decr operation not supported for field type: ${patchData.metadata.pathFieldTypes![idx]}`, NexxusDatabaseAdapter.loggerLabel);
             }
 
             break;
@@ -406,15 +407,16 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
       }
     }
 
-    NexxusElasticsearchDb.logger.debug(`Executing bulk update in Elasticsearch with ${JSON.stringify(bulkBody)}`, NexxusDatabaseAdapter.loggerLabel);
-
     if (bulkBody.length === 0) {
       NexxusElasticsearchDb.logger.warn('No items to update in Elasticsearch database', NexxusDatabaseAdapter.loggerLabel);
 
       return [];
     }
 
-    const result = await this.client.bulk({ operations: bulkBody, _source: Array.from(collectedModelFields) });
+    NexxusElasticsearchDb.logger.debug(`Executing bulk update in Elasticsearch with ${JSON.stringify(bulkBody)}`, NexxusDatabaseAdapter.loggerLabel);
+
+    const returnFields = options?.returnFields ? collectedModelFields.union(options.returnFields) : collectedModelFields;
+    const result = await this.client.bulk({ operations: bulkBody, _source: Array.from(returnFields) });
     const collectedPartialModels: Array<Partial<AnyNexxusModelType>> = [];
 
     NexxusElasticsearchDb.logger.debug(`Bulk update result: ${JSON.stringify(result)}`, NexxusDatabaseAdapter.loggerLabel);

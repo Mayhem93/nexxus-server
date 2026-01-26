@@ -53,12 +53,4 @@ export class NexxusApplicationUser extends NexxusBaseModel<NexxusUserModelType> 
       throw new InvalidUserModelException("User 'details' must be an object if provided");
     }
   }
-
-  async save(): Promise<void> {
-    // Implementation for saving the application model to the database
-  }
-
-  async delete(): Promise<void> {
-    // Implementation for deleting the application model from the database
-  }
 }
