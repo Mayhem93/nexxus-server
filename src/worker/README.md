@@ -1,4 +1,4 @@
-# @nexxus/worker
+# @mayhem93/nexxus-worker
 
 > Background workers for Nexxus - Process queued operations and route real-time notifications
 
@@ -553,10 +553,10 @@ ws://localhost:8080
 **Runtime:**
 
 - `ws` (WebSocket library)
-- `@nexxus/core` (models, FilterQuery, JsonPatch, payloads)
-- `@nexxus/database` (database operations)
-- `@nexxus/message_queue` (queue operations)
-- `@nexxus/redis` (subscription lookups)
+- `@mayhem93/nexxus-core` (models, FilterQuery, JsonPatch, payloads)
+- `@mayhem93/nexxus-database` (database operations)
+- `@mayhem93/nexxus-message-queue` (queue operations)
+- `@mayhem93/nexxus-redis` (subscription lookups)
 
 **DevDependencies:**
 
@@ -580,11 +580,11 @@ ws://localhost:8080
 
 ## Related Packages
 
-- **[@nexxus/core](../core/)** - Payload types, FilterQuery, JsonPatch
-- **[@nexxus/api](../api/)** - Publishes to writer queue
-- **[@nexxus/database](../database/)** - Used by Writer Worker
-- **[@nexxus/redis](../redis/)** - Used by Transport Manager
-- **[@nexxus/message_queue](../message_queue/)** - Queue infrastructure
+- **[@mayhem93/nexxus-core](../core/)** - Payload types, FilterQuery, JsonPatch
+- **[@mayhem93/nexxus-api](../api/)** - Publishes to writer queue
+- **[@mayhem93/nexxus-database](../database/)** - Used by Writer Worker
+- **[@mayhem93/nexxus-redis](../redis/)** - Used by Transport Manager
+- **[@mayhem93/nexxus-message-queue](../message_queue/)** - Queue infrastructure
 
 ---
 

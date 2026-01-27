@@ -5,7 +5,7 @@ import {
   NexxusBaseService,
   INexxusBaseServices,
   NexxusBaseLogger
-} from '@nexxus/core'
+} from '@mayhem93/nexxus-core';
 
 import * as Redis from 'redis';
 

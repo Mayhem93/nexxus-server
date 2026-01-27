@@ -1,4 +1,4 @@
-import { NexxusException } from "@nexxus/core";
+import { NexxusException } from "@mayhem93/nexxus-core";
 
 export enum NexxusWsExceptions {
   INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",

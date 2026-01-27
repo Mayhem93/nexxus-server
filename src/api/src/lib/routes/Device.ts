@@ -1,4 +1,3 @@
-import { NexxusDevice, NexxusDeviceProps } from '@nexxus/redis';
 import { NexxusApiBaseRoute } from '../BaseRoute';
 import {
   type NexxusApiRequest,
@@ -7,6 +6,8 @@ import {
 } from '../Api';
 import { AppExistsMiddleware, AuthMiddleware, RequiredHeadersMiddleware } from '../middlewares';
 import { InvalidParametersException, NotFoundException } from '../Exceptions';
+
+import { NexxusDevice, NexxusDeviceProps } from '@mayhem93/nexxus-redis';
 
 import type { Router, RequestHandler } from 'express';
 

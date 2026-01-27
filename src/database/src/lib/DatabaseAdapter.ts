@@ -12,7 +12,7 @@ import {
   NexxusJsonPatch,
   NexxusFilterQuery,
   AnyNexxusModelType
-} from '@nexxus/core';
+} from '@mayhem93/nexxus-core';
 
 export type NexxusDatabaseAdapterEvents = {
   connect: [];

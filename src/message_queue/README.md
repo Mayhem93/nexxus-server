@@ -1,4 +1,4 @@
-# @nexxus/message_queue
+# @mayhem93/nexxus-message-queue
 
 > Message broker abstraction for Nexxus - Pluggable adapters for event-driven communication
 
@@ -35,7 +35,7 @@ The **Message Queue package** provides a unified interface for asynchronous comm
 
 ### 🎯 Type-Safe Payloads
 
-- Strongly-typed message payloads from `@nexxus/core`
+- Strongly-typed message payloads from `@mayhem93/nexxus-core`
 - Queue names as constants (`NexxusQueueName`)
 - Payload validation at compile-time
 
@@ -84,7 +84,7 @@ WebSocket Worker
 Connected Clients
 ```
 
-### Queue Names (from `@nexxus/core`)
+### Queue Names (from `@mayhem93/nexxus-core`)
 
 ```typescript
 export type NexxusQueueName =
@@ -177,7 +177,7 @@ await messageQueue.unsubscribe('writer');
 
 ---
 
-## Message Payloads (from `@nexxus/core`)
+## Message Payloads (from `@mayhem93/nexxus-core`)
 
 ### Model Created
 
@@ -265,7 +265,7 @@ Slim metadata with channel keys:
 ### Step 1: Extend MessageQueueAdapter
 
 ```typescript
-import { MessageQueueAdapter } from '@nexxus/message_queue';
+import { MessageQueueAdapter } from '@mayhem93/nexxus-message-queue';
 
 export class KafkaMessageQueueAdapter extends MessageQueueAdapter {
   private producer: Kafka.Producer;
@@ -411,7 +411,7 @@ RabbitMQ implementation of `MessageQueueAdapter`.
 ### Custom Email Worker
 
 ```typescript
-import { MessageQueueAdapter, NexxusModelCreatedPayload } from '@nexxus/message_queue';
+import { MessageQueueAdapter, NexxusModelCreatedPayload } from '@mayhem93/nexxus-message-queue';
 
 class EmailWorker {
   constructor(private messageQueue: MessageQueueAdapter) {}
@@ -457,7 +457,7 @@ async handleModelCreated(payload: NexxusModelCreatedPayload) {
 **Runtime:**
 
 - `amqplib` (RabbitMQ client)
-- `@nexxus/core` (queue payload types)
+- `@mayhem93/nexxus-core` (queue payload types)
 
 **DevDependencies:**
 
@@ -469,16 +469,16 @@ async handleModelCreated(payload: NexxusModelCreatedPayload) {
 ## Usage in Other Packages
 
 ```typescript
-// In @nexxus/api
-import { MessageQueueAdapter } from '@nexxus/message_queue';
+// In @mayhem93/nexxus-api
+import { MessageQueueAdapter } from '@mayhem93/nexxus-message-queue';
 
 await messageQueue.publish('writer', {
   event: 'model_created',
   data: newTask
 });
 
-// In @nexxus/worker (Writer)
-import { NexxusModelCreatedPayload } from '@nexxus/core';
+// In @mayhem93/nexxus-worker (Writer)
+import { NexxusModelCreatedPayload } from '@mayhem93/nexxus-core';
 
 await messageQueue.subscribe('writer', async (payload: NexxusModelCreatedPayload) => {
   await handleModelCreated(payload);
@@ -550,9 +550,9 @@ class PubSubAdapter extends MessageQueueAdapter {
 
 ## Related Packages
 
-- **[@nexxus/core](../core/)** - Queue payload types and constants
-- **[@nexxus/api](../api/)** - Publishes to writer queue
-- **[@nexxus/worker](../worker/)** - Consumes and publishes messages
+- **[@mayhem93/nexxus-core](../core/)** - Queue payload types and constants
+- **[@mayhem93/nexxus-api](../api/)** - Publishes to writer queue
+- **[@mayhem93/nexxus-worker](../worker/)** - Consumes and publishes messages
 
 ---
 

@@ -5,7 +5,7 @@ import {
   NexxusApplicationUser,
   NexxusFilterQuery,
   NexxusUserModelType
-} from '@nexxus/core';
+} from '@mayhem93/nexxus-core';
 
 import jwt from 'jsonwebtoken';
 import type { Request, Response } from 'express';

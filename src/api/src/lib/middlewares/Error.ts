@@ -1,6 +1,6 @@
 import { NexxusApiException, ServerErrorException } from '../Exceptions';
 import { NexxusApi } from '../Api';
-import { FatalErrorException, NexxusException } from '@nexxus/core';
+import { FatalErrorException, NexxusException } from '@mayhem93/nexxus-core';
 
 import { Request, Response, NextFunction } from 'express';
 

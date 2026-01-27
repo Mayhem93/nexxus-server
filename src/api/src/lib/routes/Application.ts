@@ -7,7 +7,7 @@ import {
 import {
   type NexxusApplicationModelType,
   NexxusApplication
-} from '@nexxus/core';
+} from '@mayhem93/nexxus-core';
 
 import type { Router, RequestHandler } from 'express';
 

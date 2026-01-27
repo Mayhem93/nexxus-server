@@ -9,18 +9,18 @@ import {
   MODEL_REGISTRY,
   FatalErrorException,
   NexxusUserModelType
-} from '@nexxus/core';
+} from '@mayhem93/nexxus-core';
 import {
   NexxusDatabaseAdapter,
   NexxusDatabaseAdapterEvents,
-} from '@nexxus/database';
+} from '@mayhem93/nexxus-database';
 import {
   NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,
-} from '@nexxus/message_queue';
+} from '@mayhem93/nexxus-message-queue';
 import {
   NexxusRedis
-} from '@nexxus/redis';
+} from '@mayhem93/nexxus-redis';
 import {
   RootRoute,
   ApplicationRoute,

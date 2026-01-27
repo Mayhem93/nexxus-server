@@ -19,13 +19,13 @@ import {
   InvalidQueryFilterException,
   NexxusFilterQuery,
   NexxusFilterQueryType
-} from '@nexxus/core';
+} from '@mayhem93/nexxus-core';
 import {
   RedisKeyNotFoundException,
   NexxusRedisSubscription,
   NexxusDevice,
   RedisDeviceNotConnectedException
-} from '@nexxus/redis';
+} from '@mayhem93/nexxus-redis';
 
 import type { Router, RequestHandler } from 'express';
 

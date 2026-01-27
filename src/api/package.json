@@ -1,7 +1,7 @@
 {
-  "name": "@nexxus/api",
-  "version": "0.0.1",
-  "description": "",
+  "name": "@mayhem93/nexxus-api",
+  "version": "0.0.2",
+  "description": "API layer for the Nexxus backend",
   "main": "dist-cjs/index.js",
   "module": "dist-esm/index.js",
   "types": "dist-types/index.d.ts",
@@ -16,14 +16,22 @@
   "files": [
     "dist-*/**"
   ],
-  "keywords": [],
+  "homepage": "https://github.com/Mayhem93/nexxus-server/tree/main/src/api",
+  "keywords": [
+    "realtime",
+    "sync",
+    "synchronization",
+    "notifications",
+    "backend",
+    "baas"
+  ],
   "author": "Răzvan Botea <contact@razvanbotea.me>",
   "license": "MPL-2.0",
   "dependencies": {
-    "@nexxus/core": "file:../core",
-    "@nexxus/database": "file:../database",
-    "@nexxus/message_queue": "file:../message_queue",
-    "@nexxus/redis": "file:../redis",
+    "@mayhem93/nexxus-core": "0.0.2",
+    "@mayhem93/nexxus-database": "0.0.2",
+    "@mayhem93/nexxus-message-queue": "0.0.2",
+    "@mayhem93/nexxus-redis": "0.0.2",
     "bcrypt": "^6.0.0",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
@@ -44,5 +52,10 @@
     "@types/passport-local": "^1.0.38",
     "concurrently": "^9.2.1",
     "typescript": "5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mayhem93/nexxus-server.git",
+    "directory": "src/api"
   }
 }

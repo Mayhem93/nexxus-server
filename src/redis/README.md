@@ -1,4 +1,4 @@
-# @nexxus/redis
+# @mayhem93/nexxus-redis
 
 > Redis-based subscription and device storage for Nexxus - Fast lookups for real-time routing
 
@@ -373,7 +373,7 @@ src/
 **Runtime:**
 
 - `redis` (official Node.js Redis client)
-- `@nexxus/core` (FilterQuery, types)
+- `@mayhem93/nexxus-core` (FilterQuery, types)
 
 **DevDependencies:**
 
@@ -428,9 +428,9 @@ Redis is **hardcoded** as the subscription/device storage mechanism.
 
 ## Related Packages
 
-- **[@nexxus/core](../core/)** - FilterQuery, channel types
-- **[@nexxus/api](../api/)** - Creates subscriptions and devices
-- **[@nexxus/worker](../worker/)** - Transport Manager queries subscriptions
+- **[@mayhem93/nexxus-core](../core/)** - FilterQuery, channel types
+- **[@mayhem93/nexxus-api](../api/)** - Creates subscriptions and devices
+- **[@mayhem93/nexxus-worker](../worker/)** - Transport Manager queries subscriptions
 
 ---
 

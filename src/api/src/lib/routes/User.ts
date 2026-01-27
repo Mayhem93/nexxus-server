@@ -21,7 +21,7 @@ import {
   InvalidJsonPatchException,
   NexxusJsonPatch,
   NexxusJsonPatchInternal,
-} from '@nexxus/core';
+} from '@mayhem93/nexxus-core';
 
 import type { Router, RequestHandler } from 'express';
 

@@ -1,4 +1,4 @@
-# @nexxus/api
+# @mayhem93/nexxus-api
 
 > REST API server for Nexxus - Authentication, device management, subscriptions, and model operations
 
@@ -133,10 +133,10 @@ Client Request
 - **Express** - HTTP server framework
 - **Passport** - Authentication middleware
 - **jsonwebtoken** - JWT token generation/validation
-- **@nexxus/core** - Shared models, types, FilterQuery
-- **@nexxus/database** - Database operations
-- **@nexxus/message_queue** - Queue operations to workers
-- **@nexxus/redis** - Device and subscription storage
+- **@mayhem93/nexxus-core** - Shared models, types, FilterQuery
+- **@mayhem93/nexxus-database** - Database operations
+- **@mayhem93/nexxus-message-queue** - Queue operations to workers
+- **@mayhem93/nexxus-redis** - Device and subscription storage
 
 ---
 
@@ -148,9 +148,9 @@ Client Request
 
 ## Related Packages
 
-- **[@nexxus/worker](../worker/)** - Processes queued operations from API
-- **[@nexxus/core](../core/)** - Shared types and models
-- **[@nexxus/database](../database/)** - Database abstraction layer
+- **[@mayhem93/nexxus-worker](../worker/)** - Processes queued operations from API
+- **[@mayhem93/nexxus-core](../core/)** - Shared types and models
+- **[@mayhem93/nexxus-database](../database/)** - Database abstraction layer
 
 ---
 

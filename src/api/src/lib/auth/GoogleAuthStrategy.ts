@@ -5,12 +5,13 @@ import {
   NexxusApiRequest,
   NexxusApiResponse
 } from '../Api';
+import { UserAuthenticationFailedException } from '../Exceptions';
+
+import { NexxusJsonPatch } from '@mayhem93/nexxus-core';
 
 import type { Request, Response } from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { UserAuthenticationFailedException } from '../Exceptions';
-import { NexxusJsonPatch } from '@nexxus/core';
 
 export interface NexxusGoogleAuthConfig extends NexxusBaseAuthStrategyConfig {
   clientID: string;

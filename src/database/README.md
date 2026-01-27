@@ -1,4 +1,4 @@
-# @nexxus/database
+# @mayhem93/nexxus-database
 
 > Database abstraction layer for Nexxus - Pluggable adapters for different database systems
 
@@ -257,7 +257,7 @@ ctx._source.assignee.email = params.assignee_email;
 ### Step 1: Extend DatabaseAdapter
 
 ```typescript
-import { DatabaseAdapter } from '@nexxus/database';
+import { DatabaseAdapter } from '@mayhem93/nexxus-database';
 
 export class PostgresDatabaseAdapter extends DatabaseAdapter {
   private pool: pg.Pool;
@@ -406,7 +406,7 @@ Elasticsearch implementation of `DatabaseAdapter`.
 **Runtime:**
 
 - `@elastic/elasticsearch` (built-in adapter)
-- `@nexxus/core` (FilterQuery, JsonPatch, models)
+- `@mayhem93/nexxus-core` (FilterQuery, JsonPatch, models)
 
 **DevDependencies:**
 
@@ -418,16 +418,16 @@ Elasticsearch implementation of `DatabaseAdapter`.
 ## Usage in Other Packages
 
 ```typescript
-// In @nexxus/api
-import { DatabaseAdapter } from '@nexxus/database';
+// In @mayhem93/nexxus-api
+import { DatabaseAdapter } from '@mayhem93/nexxus-database';
 
 const results = await database.searchItems({
   index: 'tasks',
   filters: new NexxusFilterQuery({ /* ... */ })
 });
 
-// In @nexxus/worker
-import { NexxusElasticsearchDb } from '@nexxus/database';
+// In @mayhem93/nexxus-worker
+import { NexxusElasticsearchDb } from '@mayhem93/nexxus-database';
 
 const db = new NexxusElasticsearchDb();
 await db.connect(config);
@@ -507,9 +507,9 @@ class Neo4jAdapter extends DatabaseAdapter {
 
 ## Related Packages
 
-- **[@nexxus/core](../core/)** - FilterQuery, JsonPatch, model definitions
-- **[@nexxus/api](../api/)** - Uses database for reads and queued writes
-- **[@nexxus/worker](../worker/)** - Writer worker persists to database
+- **[@mayhem93/nexxus-core](../core/)** - FilterQuery, JsonPatch, model definitions
+- **[@mayhem93/nexxus-api](../api/)** - Uses database for reads and queued writes
+- **[@mayhem93/nexxus-worker](../worker/)** - Writer worker persists to database
 
 ---
 

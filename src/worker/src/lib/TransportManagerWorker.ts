@@ -12,13 +12,13 @@ import {
   NexxusFilterQuery,
   NexxusAppModelType,
   NexxusWebSocketJsonPatch
-} from '@nexxus/core';
-import { NexxusQueueMessage } from '@nexxus/message_queue';
+} from '@mayhem93/nexxus-core';
+import { NexxusQueueMessage } from '@mayhem93/nexxus-message-queue';
 import {
   NexxusBaseSubscriptionChannel,
   NexxusRedisSubscription,
   NexxusDeviceTransportString
-} from '@nexxus/redis';
+} from '@mayhem93/nexxus-redis';
 
 import {
   NexxusBaseWorker,

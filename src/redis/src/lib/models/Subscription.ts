@@ -3,7 +3,7 @@ import {
   NexxusFilterQuery,
   NexxusFilterQueryType,
   NEXXUS_PREFIX_LC
-} from '@nexxus/core';
+} from '@mayhem93/nexxus-core';
 
 import crypto from 'crypto';
 

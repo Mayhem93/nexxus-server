@@ -1,4 +1,4 @@
-# @nexxus/core
+# @mayhem93/nexxus-core
 
 > Foundation package for Nexxus - Shared types, models, utilities, and base classes
 
@@ -320,14 +320,14 @@ WebSocket Worker → Client
 **All Nexxus packages depend on Core:**
 
 ```typescript
-// In @nexxus/api
-import { NexxusFilterQuery, Application, User } from '@nexxus/core';
+// In @mayhem93/nexxus-api
+import { NexxusFilterQuery, Application, User } from '@mayhem93/nexxus-core';
 
-// In @nexxus/worker
-import { NexxusJsonPatch, NexxusModelUpdatedPayload } from '@nexxus/core';
+// In @mayhem93/nexxus-worker
+import { NexxusJsonPatch, NexxusModelUpdatedPayload } from '@mayhem93/nexxus-core';
 
-// In @nexxus/database
-import { NexxusModelDef, BaseService } from '@nexxus/core';
+// In @mayhem93/nexxus-database
+import { NexxusModelDef, BaseService } from '@mayhem93/nexxus-core';
 ```
 
 ---
@@ -337,7 +337,7 @@ import { NexxusModelDef, BaseService } from '@nexxus/core';
 ### Custom Config Provider
 
 ```typescript
-import { BaseConfigProvider } from '@nexxus/core';
+import { BaseConfigProvider } from '@mayhem93/nexxus-core';
 
 export class VaultConfigProvider extends BaseConfigProvider {
   async load(): Promise<Record<string, any>> {
@@ -350,7 +350,7 @@ export class VaultConfigProvider extends BaseConfigProvider {
 ### Custom Logger
 
 ```typescript
-import { BaseLogger } from '@nexxus/core';
+import { BaseLogger } from '@mayhem93/nexxus-core';
 
 export class DatadogLogger extends BaseLogger {
   async initialize() {
@@ -373,9 +373,9 @@ export class DatadogLogger extends BaseLogger {
 
 ## Related Packages
 
-- **[@nexxus/api](../api/)** - Uses models, FilterQuery, and types
-- **[@nexxus/worker](../worker/)** - Uses JsonPatch, queue payloads, and base classes
-- **[@nexxus/database](../database/)** - Uses FilterQuery translation and model schemas
+- **[@mayhem93/nexxus-api](../api/)** - Uses models, FilterQuery, and types
+- **[@mayhem93/nexxus-worker](../worker/)** - Uses JsonPatch, queue payloads, and base classes
+- **[@mayhem93/nexxus-database](../database/)** - Uses FilterQuery translation and model schemas
 
 ---
 

@@ -25,7 +25,7 @@ import {
   NexxusLogicalOperator,
   ConnectionException,
   NEXXUS_PREFIX_LC
-} from "@nexxus/core";
+} from "@mayhem93/nexxus-core";
 
 import * as ElasticSearch from '@elastic/elasticsearch';
 import type {
