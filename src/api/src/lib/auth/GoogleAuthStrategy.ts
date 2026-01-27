@@ -35,7 +35,7 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
       },
       async (req, accessToken, refreshToken, profile, done) => {
         try {
-          const appId = req.query.state as string;
+          const [appId, userType] = (req.query.state as string).split('|');
           const email = profile.emails?.[0]?.value;
           const app = NexxusApi.getStoredApp(appId);
 
@@ -46,6 +46,7 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
           // Find or create user
           const [user, status] = await this.findOrCreateUser(appId, {
             username: email,
+            userType,
             authProvider: 'google',
             details: {
               name: profile.displayName,
@@ -91,8 +92,8 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
               }
             });
 
-            patch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
-            updatedAtPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
+            patch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema(userType)! });
+            updatedAtPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema(userType)! });
 
             await NexxusApi.database.updateItems([patch, updatedAtPatch]);
           }
@@ -107,13 +108,18 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
 
   async handleAuth(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
     const appId = req.headers['nxx-app-id'] as string;
-    // const deviceId = req.headers['nxx-device-id'] as string;
+    const app = NexxusApi.getStoredApp(appId);
+    const userType = req.body.userType || 'default';
+
+    if (!app?.getUserDetailSchema(userType)) {
+      throw new UserAuthenticationFailedException(`User type "${userType}" not found in application "${appId}"`);
+    }
 
     // Initiate Google OAuth flow (redirects browser to Google)
     passport.authenticate('google', {
       session: false,
       scope: ['profile', 'email'],
-      state: appId // Pass appId and deviceId via state
+      state: `${appId}|${userType}` // Pass appId and userType via state
     })(req, res);
   }
 

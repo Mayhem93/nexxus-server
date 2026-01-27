@@ -1,7 +1,7 @@
 {
   "name": "@nexxus/core",
   "version": "0.0.1",
-  "description": "",
+  "description": "Core types and structures used by other Nexxus packages",
   "main": "dist-cjs/index.js",
   "module": "dist-esm/index.js",
   "types": "dist-types/index.d.ts",
@@ -16,7 +16,8 @@
   "files": [
     "dist-*/**"
   ],
-  "keywords": [],
+  "homepage": "https://github.com/Mayhem93/nexxus-server/tree/main/src/core",
+  "keywords": ["realtime", "sync", "synchronization", "notifications", "backend", "baas"],
   "author": "Răzvan Botea <contact@razvanbotea.me>",
   "license": "MPL-2.0",
   "devDependencies": {
@@ -35,5 +36,10 @@
     "sort-keys": "^6.0.0",
     "tslib": "2.8.1",
     "winston": "^3.18.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mayhem93/nexxus-server.git",
+    "directory": "src/core"
   }
 }

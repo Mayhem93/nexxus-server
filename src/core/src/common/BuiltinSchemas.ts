@@ -13,6 +13,7 @@ export const NEXXUS_UNIVERSAL_FIELDS = {
  */
 export const NEXXUS_BUILTIN_MODEL_SCHEMAS = {
   user: {
+    userType: { type: 'string', required: false, filterable: true },
     username: { type: 'string', required: true, filterable: true },
     password: { type: 'string', required: false },
     authProviders: { type: 'array', required: true, arrayType: 'string' },

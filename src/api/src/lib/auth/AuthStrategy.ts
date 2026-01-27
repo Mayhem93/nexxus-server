@@ -1,14 +1,15 @@
 import { NexxusApi, NexxusApiUser } from '../Api';
+import { UserAuthenticationFailedException } from '../Exceptions';
 
-import jwt from 'jsonwebtoken';
-import type { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
 import {
   NexxusApplicationUser,
   NexxusFilterQuery,
   NexxusUserModelType
 } from '@nexxus/core';
-import { UserAuthenticationFailedException } from '../Exceptions';
+
+import jwt from 'jsonwebtoken';
+import type { Request, Response } from 'express';
+import bcrypt from 'bcrypt';
 
 export interface NexxusBaseAuthStrategyConfig {
   jwtSecret: string;
@@ -70,7 +71,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
    */
   public async findUserByUsername(appId: string, username: string): Promise<NexxusApplicationUser | null> {
     const app = NexxusApi.getStoredApp(appId);
-    const fq = new NexxusFilterQuery({ username }, { modelType: 'user', userDetailsSchema: app?.getUserDetailSchema()});
+    const fq = new NexxusFilterQuery({ username }, { modelType: 'user', userDetailsSchema: app?.getUserDetailSchema()!});
 
     const res = await NexxusApi.database.searchItems({
       appId,
@@ -88,6 +89,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
    */
   public async createUser(appId: string, data: {
     username: string;
+    userType?: string;
     password?: string;
     authProviders: NexxusAuthProviders[];
     details?: Record<string, any>;
@@ -95,6 +97,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
     const userData: NexxusUserModelType = {
       type: 'user',
       appId,
+      userType: data.userType || 'default',
       username: data.username,
       password: data.password ? NexxusAuthStrategy.hashPassword(data.password) : null,
       authProviders: data.authProviders,
@@ -113,6 +116,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
    */
   protected async findOrCreateUser(appId: string, data: {
     username: string;
+    userType?: string;
     authProvider: NexxusAuthProviders;
     details?: Record<string, any>;
   }): Promise<[NexxusApplicationUser, 'found' | 'created']> {
@@ -122,6 +126,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
 
     if (!user) {
       user = await this.createUser(appId, {
+        userType: data.userType,
         authProviders: [data.authProvider],
         username: data.username,
         details: data.details
@@ -145,6 +150,7 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
     return {
       id: data.id!,
       username: data.username,
+      userType: data.userType,
       authProviders: data.authProviders,
       details: data.details,
       appId: data.appId

@@ -2,6 +2,7 @@ import { NexxusApiBaseRoute } from '../BaseRoute';
 import {
   InvalidAuthMethodException,
   InvalidParametersException,
+  ServerErrorException,
   UserAlreadyExistsException
 } from '../Exceptions';
 import {
@@ -20,7 +21,6 @@ import {
   InvalidJsonPatchException,
   NexxusJsonPatch,
   NexxusJsonPatchInternal,
-  NexxusUserModelType
 } from '@nexxus/core';
 
 import type { Router, RequestHandler } from 'express';
@@ -28,6 +28,7 @@ import type { Router, RequestHandler } from 'express';
 type UserRegisterRequestBody = {
   username: string;
   password: string;
+  userType?: string;
   [key: string]: any; // Additional user fields specified by app schema
 };
 
@@ -44,6 +45,8 @@ interface UserUpdateRequest extends NexxusApiRequest {
 }
 
 export default class UserRoute extends NexxusApiBaseRoute {
+  private static readonly forbiddenUpdatePaths = ['userType', 'authProviders', 'devices', 'createdAt', 'updatedAt'];
+
   constructor(appRouter: Router) {
     super('/user', appRouter);
   }
@@ -98,6 +101,7 @@ export default class UserRoute extends NexxusApiBaseRoute {
     // Create new user
     const user = await localStrategy.createUser(appId, {
       username,
+      userType: req.body.userType,
       password,
       authProviders: ['local'],
       details: additionalFields
@@ -119,6 +123,17 @@ export default class UserRoute extends NexxusApiBaseRoute {
 
     const appId = req.headers['nxx-app-id'] as string;
     const app = NexxusApi.getStoredApp(appId);
+    const user = req.user!;
+
+    if (app?.getUserDetailSchema(user.userType) === null) {
+      throw new ServerErrorException('User details schema not found for user type');
+    }
+
+    const invalidPaths = req.body.patch.path.filter((path: string) => !UserRoute.forbiddenUpdatePaths.includes(path));
+
+    if (invalidPaths.length > 0) {
+      throw new InvalidParametersException(`Invalid patch paths: "${invalidPaths.join(', ')}" cannot be updated`);
+    }
 
     // find if password is being updated and add local auth strategy to array
     const passwordUpdateIndex = req.body.patch.path.findIndex(p => p === 'password');
@@ -170,12 +185,12 @@ export default class UserRoute extends NexxusApiBaseRoute {
 
     try {
       if (authProvidersPatch) {
-        authProvidersPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
+        authProvidersPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema(user.userType)! });
         patches.push(authProvidersPatch);
       }
 
-      jsonPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
-      updatedAtPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema() });
+      jsonPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema(user.userType)! });
+      updatedAtPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema(user.userType)! });
 
       await NexxusApi.database.updateItems(patches);
 

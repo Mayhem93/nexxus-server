@@ -35,15 +35,6 @@ import {
   RequestLoggerMiddleware,
   RequiredHeadersMiddleware
 } from './middlewares';
-
-import Express from 'express';
-import helmet from 'helmet';
-import passport from 'passport';
-
-import * as path from 'node:path';
-import { readFileSync } from 'node:fs';
-import { IncomingHttpHeaders, Server as HttpServer } from 'node:http';
-import https from 'node:https';
 import {
   NexxusAuthStrategy,
   NexxusBaseAuthStrategyConfig,
@@ -51,6 +42,15 @@ import {
   NexxusGoogleAuthStrategy,
   NexxusAuthProviders
 } from './auth';
+
+import * as path from 'node:path';
+import { readFileSync } from 'node:fs';
+import { IncomingHttpHeaders, Server as HttpServer } from 'node:http';
+import https from 'node:https';
+
+import Express from 'express';
+import helmet from 'helmet';
+import passport from 'passport';
 
 export type NexxusApiHeaders = {
   'nxx-app-id'?: Readonly<string>;
@@ -62,7 +62,7 @@ export interface NexxusApiRequest extends Express.Request {
   user?: NexxusApiUser;
 }
 
-export type NexxusApiUser = Pick<NexxusUserModelType, | 'username' | 'authProviders' | 'details' | 'appId'> & {
+export type NexxusApiUser = Pick<NexxusUserModelType, | 'username' | 'userType' | 'authProviders' | 'details' | 'appId'> & {
   id: string;
   iat?: number;
   exp?: number;

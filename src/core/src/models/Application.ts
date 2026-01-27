@@ -12,13 +12,22 @@ export interface NexxusApplicationSchema {
   [modelName: string]: NexxusModelDef;
 }
 
+export interface NexxusUserTypeConfig {
+  private?: boolean; // if true users can only be created through the nexxus hub API; defaults to false if not specified
+}
+
 export type NexxusApplicationModelType = INexxusBaseModel<'application'> & {
   name: string;
   description?: string;
   schema: NexxusApplicationSchema;
   authEnabled: boolean;
   allowMultipleLogin: boolean | null;
-  userDetailSchema?: NexxusUserDetailSchema;
+  userTypes?: {
+    [userType: string]: NexxusUserTypeConfig;
+  }
+  userDetailSchema?: {
+    [userType: string]: NexxusUserDetailSchema;
+  };
 };
 
 export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelType> {
@@ -29,27 +38,50 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
       throw new Error("Application schema cannot be empty");
     }
 
+    if (data.description !== undefined && typeof data.description !== 'string') {
+      throw new Error("Application 'description' must be a string if provided");
+    }
+
+    if (data.name === undefined || typeof data.name !== 'string') {
+      throw new Error("Application 'name' is required and must be a string");
+    }
+
     if (data.authEnabled === undefined || typeof data.authEnabled !== 'boolean') {
       throw new Error("Application 'authEnabled' is required and must be a boolean");
-    } else if (data.authEnabled && (!data.userDetailSchema || typeof data.userDetailSchema !== 'object')) {
-      throw new Error("Application 'userSchema' must be provided when 'authEnabled' is true");
     }
 
-    if (data.authEnabled && typeof data.allowMultipleLogin !== 'boolean' && data.allowMultipleLogin !== undefined) {
-      throw new Error("Application 'allowMultipleLogin' must be a boolean when 'authEnabled' is enabled");
-    }
+    if (data.authEnabled) {
+      if (!data.userDetailSchema || typeof data.userDetailSchema !== 'object') {
+        throw new Error("Application 'userSchema' must be provided when 'authEnabled' is enabled");
+      }
 
-    data.allowMultipleLogin = data.authEnabled ? data.allowMultipleLogin || true : null;
+      if (typeof data.allowMultipleLogin !== 'boolean' && data.allowMultipleLogin !== undefined) {
+        throw new Error("Application 'allowMultipleLogin' must be a boolean when 'authEnabled' is enabled");
+      }
+
+      if (data.userTypes !== undefined && typeof data.userTypes !== 'object') {
+        throw new Error("Application 'userTypes' must be an object when 'authEnabled' is enabled");
+      }
+
+      this.data.allowMultipleLogin = data.allowMultipleLogin || true;
+      this.data.userTypes = data.userTypes ? { ...data.userTypes, ...{ default: {} } } : { default: {} };
+    } else {
+      this.data.allowMultipleLogin = null;
+    }
 
     //TODO: actually use json schema validation for schema structure
   }
 
   public getSchema(): NexxusApplicationSchema {
-    return this.getData().schema;
+    return this.data.schema;
   }
 
-  public getUserDetailSchema(): NexxusUserDetailSchema | undefined {
-    return this.getData().userDetailSchema;
+  public getUserDetailSchema(userType: string = 'default'): NexxusUserDetailSchema | null {
+    if (!this.data.userDetailSchema) {
+      return null;
+    }
+
+    return this.data.userDetailSchema[userType];
   }
 
   public getAppModelFieldType(modelType: string, fieldPath: string): string | undefined {

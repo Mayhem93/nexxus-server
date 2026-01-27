@@ -8,6 +8,7 @@ import { InvalidUserModelException } from "../lib/Exceptions";
 
 export type NexxusUserModelType = INexxusBaseModel<'user'> & {
   appId: string;
+  userType: string;
   username: string;
   password: string | null;
   authProviders: Array<string>; // auth provider when the user was created; does not change
@@ -47,6 +48,10 @@ export class NexxusApplicationUser extends NexxusBaseModel<NexxusUserModelType> 
       if (!areAllStrings) {
         throw new InvalidUserModelException("User 'devices' must be an array of strings");
       }
+    }
+
+    if (typeof this.data.userType !== 'string') {
+      throw new InvalidUserModelException("User 'userType' must be a string");
     }
 
     if (this.data.details !== undefined && typeof this.data.details !== 'object') {

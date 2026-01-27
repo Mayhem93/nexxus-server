@@ -13,6 +13,15 @@ import {
 
 import type { Router, RequestHandler } from 'express';
 
+interface GetModelRequest extends NexxusApiRequest {
+  params: {
+    id: string;
+  };
+  query: {
+    type?: string;
+  }
+}
+
 interface CreateAppModelRequest extends NexxusApiRequest {
   body: NexxusAppModelType;
 }
@@ -52,13 +61,34 @@ export default class ModelRoute extends NexxusApiBaseRoute {
     this.router.use(AuthMiddleware as RequestHandler);
 
     this.router.post('/', this.createModel.bind(this) as RequestHandler);
-    this.router.get('/:id', this.getModel.bind(this) as RequestHandler);
-    this.router.put('/:id', this.updateModel.bind(this) as RequestHandler<UpdateAppModelRequest['params']>);
+    this.router.get('/:id', this.getModel.bind(this) as RequestHandler<GetModelRequest['params'], any, any, GetModelRequest['query']>);
+    this.router.put('/:id', this.updateModel.bind(this) as RequestHandler<UpdateAppModelRequest['params'], any, UpdateAppModelRequest['body']>);
     this.router.delete('/:id', this.deleteModel.bind(this) as RequestHandler<DeleteAppModelRequest['params']>);
   }
 
-  private async getModel(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
-    res.status(200).send({ message: 'Welcome to the Model Route!' });
+  private async getModel(req: GetModelRequest, res: NexxusApiResponse): Promise<void> {
+    const appId = req.headers['nxx-app-id'] as string;
+    const appSchema = NexxusApi.getStoredApp(appId)?.getSchema() as NexxusApplicationSchema;
+
+    if (!req.query.type) {
+      throw new InvalidParametersException('Query parameter "type" is required');
+    }
+
+    if (!appSchema[req.query.type]) {
+      throw new ModelNotFoundException(`Model "${req.query.type}" not found in schema for the application "${appId}"`);
+    }
+
+    const items = await NexxusApi.database.getItems({
+      ids: [ req.params.id ],
+      type: req.query.type,
+      appId: appId
+    });
+
+    if (items.length === 0 || !items[0]) {
+      throw new ModelNotFoundException(`Model instance with ID "${req.params.id}" not found`);
+    }
+
+    res.status(200).send({ data: items[0].getData() });
   }
 
   private async createModel(req: CreateAppModelRequest, res: NexxusApiResponse): Promise<void> {
