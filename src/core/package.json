@@ -1,6 +1,6 @@
 {
-  "name": "@mayhem93/nexxus-core",
-  "version": "0.0.2",
+  "name": "@mayhem93/nexxus-core-lib",
+  "version": "0.0.1",
   "description": "Core types and structures used by other Nexxus packages",
   "main": "dist-cjs/index.js",
   "module": "dist-esm/index.js",
@@ -14,7 +14,8 @@
   },
   "sideEffects": false,
   "files": [
-    "dist-*/**"
+    "dist-*/**",
+    "src/schemas/**/*.json"
   ],
   "homepage": "https://github.com/Mayhem93/nexxus-server/tree/main/src/core",
   "keywords": ["realtime", "sync", "synchronization", "notifications", "backend", "baas"],
