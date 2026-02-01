@@ -24,8 +24,9 @@ import {
   NexxusFilterQuery,
   NexxusLogicalOperator,
   ConnectionException,
-  NEXXUS_PREFIX_LC
-} from "@mayhem93/nexxus-core";
+  NEXXUS_PREFIX_LC,
+  NEXXUS_BUILTIN_MODEL_SCHEMAS
+} from "@mayhem93/nexxus-core-lib";
 
 import * as ElasticSearch from '@elastic/elasticsearch';
 import type {
@@ -56,6 +57,7 @@ type ESBulkRequest = {
 export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchConfig, ElasticSearchEvents> {
   private client: ElasticSearch.Client;
   private collectedIndices: Set<string> = new Set();
+  private lastRefreshTimes: Map<string, number> = new Map();
 
   protected static schemaPath: string = path.join(__dirname, "../../src/schemas/elasticsearch.schema.json");
   protected static envVars: ConfigEnvVars = {
@@ -145,6 +147,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
 
   async createItems(collection: Array<AnyNexxusModel>): Promise<void> {
     const bulkReq : ESBulkRequest = { body: [] };
+    let waitForRefresh = true;
 
     for (const item of collection) {
       let itemData : AnyNexxusModelType;
@@ -165,6 +168,8 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
           itemData = (item as NexxusAppModel).getData();
           index = `${NEXXUS_PREFIX_LC}-app-${itemData.appId}-${itemData.type}`;
 
+          waitForRefresh = false;
+
           break;
         default:
           throw new Error(`ElasticsearchDb.createItems: Unsupported model type: ${(item as NexxusBaseModel).getData().type}`);
@@ -178,7 +183,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
       );
     }
 
-    await this.client.bulk(bulkReq);
+    await this.client.bulk({ operations: bulkReq.body, refresh: waitForRefresh ? 'wait_for' : false });
   }
 
   async searchItems(options: NexxusDbSearchOptions<'application'>): Promise<NexxusApplication[]>;
@@ -210,6 +215,23 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
         const modelName = options.type;
 
         index += `-app-${options.appId}-${modelName}`;
+
+        if (options.databaseSpecific?.forceRefresh === true) {
+          const lastRefresh = this.lastRefreshTimes.get(index);
+          const timeSinceRefresh = lastRefresh ? Date.now() - lastRefresh : Infinity;
+
+          // Only refresh if > 500ms since last refresh
+          if (timeSinceRefresh > 500) {
+            await this.client.indices.refresh({ index: index });
+
+            this.lastRefreshTimes.set(index, Date.now());
+
+            NexxusElasticsearchDb.logger.debug(
+              `Forced refresh of index ${index} (last refresh was ${timeSinceRefresh}ms ago)`,
+              NexxusDatabaseAdapter.loggerLabel
+            );
+          }
+        }
     }
 
     const esSearchRequest: ElasticSearch.estypes.SearchRequest = {
@@ -310,6 +332,11 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
   async updateItems(collection: Array<NexxusJsonPatch>, options?: NexxusDbUpdateOptions): Promise<Array<Partial<AnyNexxusModelType>>> {
     const bulkBody: Array<BulkOperationContainer | BulkUpdateAction> = [];
     const collectedModelFields = new Set<string>();
+    let waitForRefresh = true;
+
+    if (!(collection[0].get().metadata.type in Object.keys(NEXXUS_BUILTIN_MODEL_SCHEMAS))) {
+      waitForRefresh = false;
+    }
 
     for (const patch of collection) {
       const patchData = patch.get();
@@ -416,7 +443,7 @@ export class NexxusElasticsearchDb extends NexxusDatabaseAdapter<ElasticsearchCo
     NexxusElasticsearchDb.logger.debug(`Executing bulk update in Elasticsearch with ${JSON.stringify(bulkBody)}`, NexxusDatabaseAdapter.loggerLabel);
 
     const returnFields = options?.returnFields ? collectedModelFields.union(options.returnFields) : collectedModelFields;
-    const result = await this.client.bulk({ operations: bulkBody, _source: Array.from(returnFields) });
+    const result = await this.client.bulk({ operations: bulkBody, _source: Array.from(returnFields), refresh: waitForRefresh ? 'wait_for' : false });
     const collectedPartialModels: Array<Partial<AnyNexxusModelType>> = [];
 
     NexxusElasticsearchDb.logger.debug(`Bulk update result: ${JSON.stringify(result)}`, NexxusDatabaseAdapter.loggerLabel);

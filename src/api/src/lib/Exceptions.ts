@@ -1,4 +1,4 @@
-import { NexxusException } from "@mayhem93/nexxus-core";
+import { NexxusException } from "@mayhem93/nexxus-core-lib";
 
 enum ApiExceptions {
   INVALID_PARAMETERS = "InvalidParametersException",

@@ -21,7 +21,7 @@ import {
   InvalidJsonPatchException,
   NexxusJsonPatch,
   NexxusJsonPatchInternal,
-} from '@mayhem93/nexxus-core';
+} from '@mayhem93/nexxus-core-lib';
 
 import type { Router, RequestHandler } from 'express';
 
@@ -129,7 +129,7 @@ export default class UserRoute extends NexxusApiBaseRoute {
       throw new ServerErrorException('User details schema not found for user type');
     }
 
-    const invalidPaths = req.body.patch.path.filter((path: string) => !UserRoute.forbiddenUpdatePaths.includes(path));
+    const invalidPaths = req.body.patch.path.filter((path: string) => UserRoute.forbiddenUpdatePaths.includes(path));
 
     if (invalidPaths.length > 0) {
       throw new InvalidParametersException(`Invalid patch paths: "${invalidPaths.join(', ')}" cannot be updated`);

@@ -12,8 +12,8 @@ import {
   NexxusFilterQuery,
   NexxusAppModelType,
   NexxusWebSocketJsonPatch
-} from '@mayhem93/nexxus-core';
-import { NexxusQueueMessage } from '@mayhem93/nexxus-message-queue';
+} from '@mayhem93/nexxus-core-lib';
+import { NexxusQueueMessage } from '@mayhem93/nexxus-message-queue-lib';
 import {
   NexxusBaseSubscriptionChannel,
   NexxusRedisSubscription,

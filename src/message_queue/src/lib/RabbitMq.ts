@@ -6,7 +6,7 @@ import {
   NexxusQueueName,
   NexxusQueuePayload,
   FatalErrorException,
-} from "@mayhem93/nexxus-core";
+} from "@mayhem93/nexxus-core-lib";
 import {
   NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,

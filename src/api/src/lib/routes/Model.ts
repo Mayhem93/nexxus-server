@@ -9,7 +9,7 @@ import {
   type NexxusApplicationSchema,
   InvalidJsonPatchException,
   NexxusJsonPatchInternal
-} from '@mayhem93/nexxus-core';
+} from '@mayhem93/nexxus-core-lib';
 
 import type { Router, RequestHandler } from 'express';
 

@@ -16,8 +16,8 @@ import {
   NexxusConfig,
   NexxusQueueName,
   NexxusWebsocketPayload
-} from '@mayhem93/nexxus-core';
-import { NexxusQueueMessage } from '@mayhem93/nexxus-message-queue';
+} from '@mayhem93/nexxus-core-lib';
+import { NexxusQueueMessage } from '@mayhem93/nexxus-message-queue-lib';
 import { NexxusDevice, RedisDeviceInvalidParamsException } from '@mayhem93/nexxus-redis';
 
 import * as path from "node:path";

@@ -84,6 +84,10 @@ export class NexxusApplication extends NexxusBaseModel<NexxusApplicationModelTyp
     return this.data.userDetailSchema[userType];
   }
 
+  public hasAuthEnabled(): boolean {
+    return this.data.authEnabled;
+  }
+
   public getAppModelFieldType(modelType: string, fieldPath: string): string | undefined {
     const appModelFieldType = Dot.getProperty(this.getSchema(), `${modelType}.${fieldPath}.type`);
 

@@ -10,7 +10,11 @@
     "noEmitHelpers": false,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@nexxus/core": ["src/core/*"]
+      "@mayhem93/nexxus-core-lib": ["src/core/*"],
+      "@mayhem93/nexxus-database-lib": ["src/database/*"],
+      "@mayhem93/nexxus-message-queue-lib": ["src/message_queue/*"],
+      "@mayhem93/nexxus-redis": ["src/redis/*"],
+      "@mayhem93/nexxus-worker-lib": ["src/worker/*"]
       // "@aws-sdk/client-*": ["clients/client-*/"],
       // "@aws-sdk/aws-*": ["private/aws-*/"],
       // "@aws-sdk/lib-*": ["lib/*"]

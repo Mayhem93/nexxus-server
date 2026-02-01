@@ -8,10 +8,12 @@ import { AppExistsMiddleware, AuthMiddleware, RequiredHeadersMiddleware } from '
 import { InvalidParametersException, NotFoundException } from '../Exceptions';
 
 import { NexxusDevice, NexxusDeviceProps } from '@mayhem93/nexxus-redis';
+import { NexxusJsonPatch } from '@mayhem93/nexxus-core-lib';
 
 import type { Router, RequestHandler } from 'express';
 
 import { randomUUID } from 'node:crypto';
+import * as path from 'node:path';
 
 type RegisterDeviceRequestBody = Omit<NexxusDeviceProps, 'id' | 'appId' | 'status' | 'lastSeen' | 'subscriptions' | 'connectedTo' | 'type'>;
 type UpdateDeviceRequestBody = Pick<NexxusDeviceProps, 'name'>;
@@ -58,10 +60,13 @@ export default class DeviceRoute extends NexxusApiBaseRoute {
       throw new InvalidParametersException('Invalid or missing device name in request body');
     }
 
+    const appId = req.headers['nxx-app-id'] as string;
+    const app = NexxusApi.getStoredApp(appId);
+    const userId = req.user?.id;
     const nxxDevice = new NexxusDevice({
       id: randomUUID(),
       appId: req.headers['nxx-app-id'] as string,
-      userId: req.user?.id || null,
+      userId: userId || null,
       name: req.body.name,
       status: 'offline',
       lastSeen: (new Date(0)).toDateString(),
@@ -70,12 +75,42 @@ export default class DeviceRoute extends NexxusApiBaseRoute {
 
     await nxxDevice.save();
 
+    if (app?.hasAuthEnabled()) {
+      const updateUserDevicesPatch = new NexxusJsonPatch({
+        op: 'append',
+        value: [nxxDevice.getValue().id],
+        path: ['devices'],
+        metadata: {
+          appId: nxxDevice.getValue().appId,
+          id: userId!,
+          type: 'user'
+        }
+      });
+
+      const updatedAtPatch = new NexxusJsonPatch({
+        op: 'replace',
+        value: [new Date().toISOString()],
+        path: ['updatedAt'],
+        metadata: {
+          appId: nxxDevice.getValue().appId,
+          id: userId!,
+          type: 'user'
+        }
+      });
+
+      updateUserDevicesPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema()! });
+      updatedAtPatch.validate({ modelType: 'user', userDetailsSchema: app?.getUserDetailSchema()! });
+
+      await NexxusApi.database.updateItems([updateUserDevicesPatch, updatedAtPatch]);
+    }
+
     res.status(200).send({
       message: 'Device registered successfully!',
       device: {
         id: nxxDevice.getValue().id,
         appId: nxxDevice.getValue().appId,
-        name: nxxDevice.getValue().name
+        name: nxxDevice.getValue().name,
+        userId: nxxDevice.getValue().userId,
       }
     });
   }

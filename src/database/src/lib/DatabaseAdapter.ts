@@ -12,7 +12,7 @@ import {
   NexxusJsonPatch,
   NexxusFilterQuery,
   AnyNexxusModelType
-} from '@mayhem93/nexxus-core';
+} from '@mayhem93/nexxus-core-lib';
 
 export type NexxusDatabaseAdapterEvents = {
   connect: [];
@@ -27,6 +27,7 @@ export interface NexxusDbSearchOptions<T extends NexxusModelTypeName | string = 
   filter?: NexxusFilterQuery;
   limit?: number;
   offset?: number;
+  databaseSpecific?: Record<string, any>;
 }
 
 export interface NexxusDbGetOptions<T extends NexxusModelTypeName = string> {

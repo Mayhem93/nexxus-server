@@ -4,7 +4,7 @@ import { UserAuthenticationFailedException } from '../Exceptions';
 
 import passport from 'passport';
 import { Strategy as PassportLocalStrategy } from 'passport-local';
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 
 export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
   readonly name = 'local';
@@ -50,20 +50,20 @@ export default class NexxusLocalAuthStrategy extends NexxusAuthStrategy {
     ));
   }
 
-  async handleAuth(req: Request, res: Response): Promise<void> {
+  async handleAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
     passport.authenticate('local', { session: false }, (err: any, user?: NexxusApiUser, info?: any) => {
       if (err) {
-        throw err;
+        return next(err);
       }
 
       if (!user) {
         NexxusApi.logger.debug(`Local authentication failed: ${info.message}`, 'AuthStrategy');
 
         if (info.message === 'Missing credentials') {
-          throw new UserAuthenticationFailedException('Username and password are required');
+          return next(new UserAuthenticationFailedException('Username and password are required'));
         }
 
-        throw new UserAuthenticationFailedException('Authentication failed');
+        return next(new UserAuthenticationFailedException('Authentication failed'));
       }
 
       this.sendTokenResponse(res, user);

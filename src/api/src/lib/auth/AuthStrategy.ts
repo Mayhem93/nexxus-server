@@ -5,10 +5,10 @@ import {
   NexxusApplicationUser,
   NexxusFilterQuery,
   NexxusUserModelType
-} from '@mayhem93/nexxus-core';
+} from '@mayhem93/nexxus-core-lib';
 
 import jwt from 'jsonwebtoken';
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 
 export interface NexxusBaseAuthStrategyConfig {
@@ -26,8 +26,8 @@ export default abstract class NexxusAuthStrategy<T extends NexxusBaseAuthStrateg
   protected static jwtSecret: string;
   protected static jwtExpiresIn: string;
 
-  abstract handleAuth(req: Request, res: Response): void | Promise<void>;
-  abstract handleCallback(req: Request, res: Response): void | Promise<void>;
+  abstract handleAuth(req: Request, res: Response, next: NextFunction): void | Promise<void>;
+  abstract handleCallback(req: Request, res: Response, next: NextFunction): void | Promise<void>;
 
   initializePassport(): void {
     this.config = NexxusApi.instance.getAuthProviderConfig<T>(this.name);

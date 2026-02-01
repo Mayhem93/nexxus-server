@@ -9,15 +9,15 @@ import {
   MODEL_REGISTRY,
   FatalErrorException,
   NexxusUserModelType
-} from '@mayhem93/nexxus-core';
+} from '@mayhem93/nexxus-core-lib';
 import {
   NexxusDatabaseAdapter,
   NexxusDatabaseAdapterEvents,
-} from '@mayhem93/nexxus-database';
+} from '@mayhem93/nexxus-database-lib';
 import {
   NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,
-} from '@mayhem93/nexxus-message-queue';
+} from '@mayhem93/nexxus-message-queue-lib';
 import {
   NexxusRedis
 } from '@mayhem93/nexxus-redis';
@@ -96,8 +96,8 @@ interface ApiServices extends INexxusBaseServices {
 
 export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
   public static logger: NexxusBaseLogger<any>;
-  public static database: NexxusDatabaseAdapter<any, any>;
-  public static messageQueue: NexxusMessageQueueAdapter<any, any>;
+  public static database: NexxusDatabaseAdapter<NexxusConfig, NexxusDatabaseAdapterEvents>;
+  public static messageQueue: NexxusMessageQueueAdapter<NexxusConfig, NexxusMessageQueueAdapterEvents>;
   public static redis: NexxusRedis;
   public static instance: NexxusApi;
 
@@ -290,15 +290,15 @@ export class NexxusApi extends NexxusBaseService<NexxusApiConfig> {
       this.express.post(
         `/auth/${strategy.name}`,
         RequiredHeadersMiddleware('nxx-app-id') as Express.RequestHandler,
-        RequiredHeadersMiddleware('nxx-device-id') as Express.RequestHandler,
         strategy.handleAuth.bind(strategy)
       );
 
       // Register callback route if strategy requires it
       if (strategy.requiresCallback) {
-        this.express.get(`/auth/${strategy.name}/callback`, (req, res) => {
-          strategy.handleCallback(req, res);
-        });
+        this.express.get(
+          `/auth/${strategy.name}/callback`,
+          strategy.handleCallback.bind(strategy)
+        );
       }
 
       NexxusApi.logger.debug(

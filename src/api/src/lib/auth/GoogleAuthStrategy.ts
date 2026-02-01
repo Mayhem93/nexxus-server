@@ -7,9 +7,9 @@ import {
 } from '../Api';
 import { UserAuthenticationFailedException } from '../Exceptions';
 
-import { NexxusJsonPatch } from '@mayhem93/nexxus-core';
+import { NexxusJsonPatch } from '@mayhem93/nexxus-core-lib';
 
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
@@ -107,13 +107,13 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
     ));
   }
 
-  async handleAuth(req: NexxusApiRequest, res: NexxusApiResponse): Promise<void> {
+  async handleAuth(req: NexxusApiRequest, res: NexxusApiResponse, next: NextFunction): Promise<void> {
     const appId = req.headers['nxx-app-id'] as string;
     const app = NexxusApi.getStoredApp(appId);
     const userType = req.body.userType || 'default';
 
     if (!app?.getUserDetailSchema(userType)) {
-      throw new UserAuthenticationFailedException(`User type "${userType}" not found in application "${appId}"`);
+      return next(new UserAuthenticationFailedException(`User type "${userType}" not found in application "${appId}"`));
     }
 
     // Initiate Google OAuth flow (redirects browser to Google)
@@ -121,14 +121,14 @@ export default class NexxusGoogleAuthStrategy extends NexxusAuthStrategy<NexxusG
       session: false,
       scope: ['profile', 'email'],
       state: `${appId}|${userType}` // Pass appId and userType via state
-    })(req, res);
+    })(req, res, next);
   }
 
-  async handleCallback(req: Request, res: Response): Promise<void> {
+  async handleCallback(req: Request, res: Response, next: NextFunction): Promise<void> {
     // Handle Google's callback (browser was redirected here by Google)
     passport.authenticate('google', { session: false }, (err: any, user: NexxusApiUser, info: any) => {
       if (err) {
-        throw err;
+        return next(err);
       }
 
       // NexxusApi.logger.debug(`Google authentication callback invoked: ${JSON.stringify(user)}`, 'GoogleAuthStrategy');

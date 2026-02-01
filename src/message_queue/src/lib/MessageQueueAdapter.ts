@@ -6,7 +6,7 @@ import {
   NexxusQueueName,
   NexxusQueuePayload,
   NexxusBaseQueuePayload,
-} from "@mayhem93/nexxus-core";
+} from "@mayhem93/nexxus-core-lib";
 
 export type NexxusMessageQueueAdapterEvents = {
   connect: [];

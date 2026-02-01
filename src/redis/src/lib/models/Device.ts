@@ -7,7 +7,7 @@ import {
 } from '../Exceptions'
 import { NexxusRedisBaseModel, RedisKeyType } from './BaseModel';
 import { NexxusRedisSubscription } from './Subscription';
-import { NEXXUS_PREFIX_LC } from '@mayhem93/nexxus-core';
+import { NEXXUS_PREFIX_LC } from '@mayhem93/nexxus-core-lib';
 
 import crypto from 'crypto';
 

@@ -9,16 +9,16 @@ import {
   FatalErrorException,
   NexxusApplication,
   MODEL_REGISTRY
-} from '@mayhem93/nexxus-core';
+} from '@mayhem93/nexxus-core-lib';
 import {
   NexxusDatabaseAdapter,
   NexxusDatabaseAdapterEvents
-} from '@mayhem93/nexxus-database';
+} from '@mayhem93/nexxus-database-lib';
 import {
   NexxusMessageQueueAdapter,
   NexxusMessageQueueAdapterEvents,
   NexxusQueueMessage
-} from '@mayhem93/nexxus-message-queue';
+} from '@mayhem93/nexxus-message-queue-lib';
 import { NexxusRedis } from '@mayhem93/nexxus-redis';
 
 import * as Dot from 'dot-prop';

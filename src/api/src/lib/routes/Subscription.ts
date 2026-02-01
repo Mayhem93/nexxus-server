@@ -19,7 +19,7 @@ import {
   InvalidQueryFilterException,
   NexxusFilterQuery,
   NexxusFilterQueryType
-} from '@mayhem93/nexxus-core';
+} from '@mayhem93/nexxus-core-lib';
 import {
   RedisKeyNotFoundException,
   NexxusRedisSubscription,
@@ -71,6 +71,7 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
     const app = NexxusApi.getStoredApp(appId);
     const appSchema = app!.getData().schema;
     const deviceId = req.headers['nxx-device-id'] as string;
+    const responseBody: Record<string, any> = { data: {} };
 
     if (!req.body.model || typeof req.body.model !== 'string') {
       throw new InvalidParametersException('Invalid model parameter');
@@ -166,6 +167,8 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
         const device = await NexxusDevice.get(deviceId, true);
 
         await device.addSubscription(sub);
+
+        responseBody.data.channelId = sub.getKey();
       } catch (e) {
         if (e instanceof RedisKeyNotFoundException) {
           throw new NotFoundException(`Device with id "${deviceId}" not found`);
@@ -182,10 +185,15 @@ export default class SubscriptionRoute extends NexxusApiBaseRoute {
       type: req.body.model,
       filter: databaseFilter,
       limit: req.body.limit,
-      offset: req.body.offset
+      offset: req.body.offset,
+      databaseSpecific: {
+        forceRefresh: req.body.getOnly === false
+      }
     })).map(item => item.getData());
 
-    res.status(200).send({ results });
+    responseBody.data.items = results;
+
+    res.status(200).send(responseBody);
   }
 
   private async unsubscribe(req: UnsubscribeRequest, res: NexxusApiResponse): Promise<void> {}

@@ -7,7 +7,7 @@ import {
 import { NexxusWebsocketsTransportWorker } from "../WebsocketsTransportWorker";
 
 import { NexxusDevice, RedisKeyNotFoundException } from "@mayhem93/nexxus-redis";
-import { NexxusAppModelType, NexxusModelDeletedData, NexxusWebSocketJsonPatch } from "@mayhem93/nexxus-core";
+import { NexxusAppModelType, NexxusModelDeletedData, NexxusWebSocketJsonPatch } from "@mayhem93/nexxus-core-lib";
 
 import { WebSocket, Data as WebSocketData } from "ws";
 

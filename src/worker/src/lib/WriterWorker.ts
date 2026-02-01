@@ -9,8 +9,8 @@ import {
   NexxusBaseQueuePayload,
   NexxusTransportManagetJsonPatch,
   NexxusAppModelType
-} from '@mayhem93/nexxus-core';
-import { NexxusQueueMessage } from '@mayhem93/nexxus-message-queue';
+} from '@mayhem93/nexxus-core-lib';
+import { NexxusQueueMessage } from '@mayhem93/nexxus-message-queue-lib';
 import {
   NexxusBaseWorker,
   NexxusBaseWorkerEvents,
